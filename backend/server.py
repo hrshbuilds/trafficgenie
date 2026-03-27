@@ -23,6 +23,10 @@ UPLOAD_DIR = "data/uploads"
 ALLOWED_REVIEW_STATUS = {"approved", "rejected", "pending"}
 security = HTTPBearer()
 
+def is_demo_mode() -> bool:
+    return os.getenv("DEMO_MODE", "false").lower() in {"1", "true", "yes", "on"}
+
+
 
 def initialize_firebase() -> bool:
     if firebase_admin._apps:
@@ -61,10 +65,16 @@ def api_error(status_code: int, code: str, message: str, details=None):
 
 
 async def verify_firebase_token(
-    authorization: HTTPAuthorizationCredentials = Security(security),
+    authorization: HTTPAuthorizationCredentials | None = Security(security, auto_error=False),
 ):
+    if is_demo_mode():
+        return {"uid": "demo-reviewer", "email": "demo@trafficvision.local", "demo": True}
+
     if not FIREBASE_READY:
         raise HTTPException(status_code=503, detail="Firebase authentication is not configured")
+
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Missing authentication credentials")
 
     token = authorization.credentials
     try:
