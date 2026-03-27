@@ -1,4 +1,5 @@
 from datetime import datetime
+
 from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
 
@@ -33,12 +34,12 @@ class Violation(Base):
     __tablename__ = "violations"
 
     id = Column(Integer, primary_key=True, index=True)
-    violation_type = Column(String(120), nullable=False)
-    plate = Column(String(40), nullable=False)
+    violation_type = Column(String(120), nullable=False, index=True)
+    plate = Column(String(40), nullable=False, index=True)
     confidence = Column(Float, nullable=False)
-    detected_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    detected_at = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
     location = Column(String(255), nullable=False)
-    ward = Column(String(120), nullable=False)
+    ward = Column(String(120), nullable=False, index=True)
     zone = Column(String(120), nullable=False)
     model_version = Column(String(120), nullable=False, default="yolov8n")
     camera_id = Column(Integer, ForeignKey("cameras.id"), nullable=True)
@@ -93,3 +94,14 @@ class ReviewAction(Base):
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
     challan = relationship("Challan", back_populates="reviews")
+
+
+class ProcessingJob(Base):
+    __tablename__ = "processing_jobs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    source_file = Column(String(500), nullable=False)
+    status = Column(String(30), nullable=False, default="queued", index=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    result_summary = Column(Text, nullable=True)
