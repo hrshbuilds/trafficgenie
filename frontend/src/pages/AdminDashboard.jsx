@@ -1,9 +1,17 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useRealtimeViolations, useRealtimeNewViolations } from '../hooks/useViolations';
+import { useAgentLogs } from '../hooks/useAgentLogs';
+import { useRealtimeStats } from '../hooks/useRealtimeStats';
 import HotspotHeatmap from '../components/HotspotHeatmap';
 import AnalyticsDashboard from '../components/AnalyticsDashboard';
 import ViolationLog from '../components/ViolationLog';
 import ChallanSection from '../components/ChallanSection';
+import UserSettings from '../components/UserSettings';
+import { AIInsights } from '../components/analytics/AIInsights';
+import { TrafficGenie } from '../components/TrafficGenie';
+import { LiveIndicator } from '../components/alerts/LiveIndicator';
+import { NewViolationAlert } from '../components/alerts/NewViolationAlert';
 import './AdminDashboard.css';
 
 // ─── NASHIK VIOLATION DATA ───
@@ -39,8 +47,19 @@ const ZONES = [
 
 export default function AdminDashboard({ onOpenModal }) {
   const { signOut } = useAuth();
-  const [violations, setViolations] = useState(INITIAL_VIOLATIONS);
-  const [agentLogs, setAgentLogs] = useState(INITIAL_AGENTS);
+  
+  // Real-time data from Firebase
+  const { violations, loading: violationsLoading } = useRealtimeViolations({ limit: 50 });
+  const { logs: agentLogs, loading: logsLoading } = useAgentLogs({ limit: 20 });
+  const { stats, loading: statsLoading } = useRealtimeStats();
+  
+  // New violations (for toast alerts)
+  const [newViolationToast, setNewViolationToast] = useState(null);
+  useRealtimeNewViolations((violation) => {
+    setNewViolationToast(violation);
+  });
+
+  // Local UI state
   const [time, setTime] = useState(new Date().toLocaleTimeString('en-IN', { hour12: false }));
   const [tlSeconds, setTlSeconds] = useState(18);
   const [tlPhase, setTlPhase] = useState('red');
@@ -51,14 +70,7 @@ export default function AdminDashboard({ onOpenModal }) {
   const [activeCam, setActiveCam] = useState('CAM-01');
   const [sessionCount, setSessionCount] = useState(23);
   const [activeTab, setActiveTab] = useState('live');
-
-  // Stats State
-  const [stats, setStats] = useState({
-    violations: 1284,
-    alerts: 7,
-    challans: 389,
-    fine: '₹1.94L'
-  });
+  const [showSettings, setShowSettings] = useState(false);
 
   // Clock & Traffic Light Effect
   useEffect(() => {
@@ -77,50 +89,6 @@ export default function AdminDashboard({ onOpenModal }) {
     }, 1000);
     return () => clearInterval(timer);
   }, [tlPhase]);
-
-  const triggerDemo = () => {
-    const randomV = INITIAL_VIOLATIONS[Math.floor(Math.random() * INITIAL_VIOLATIONS.length)];
-    const newV = {
-      ...randomV,
-      id: Date.now(),
-      time: new Date().toLocaleTimeString('en-IN', { hour12: false }),
-      risk: Math.floor(Math.random() * 50) + 40
-    };
-
-    setViolations(prev => [newV, ...prev].slice(0, 25));
-    setSessionCount(prev => prev + 1);
-    
-    // Update Stats
-    setStats(prev => ({
-      ...prev,
-      violations: prev.violations + 1,
-      alerts: (newV.status === 'urgent') ? prev.alerts + 1 : prev.alerts
-    }));
-
-    // Add Agent Logs
-    const steps = [
-      { tool: 'analyze', msg: `<strong>analyze_frame</strong> → ${newV.type} confirmed`, result: `${newV.conf}% conf` },
-      { tool: 'log', msg: `<strong>log_violation</strong> → #TW-${Math.floor(Math.random()*9000)+1000} pushed`, result: 'Firebase ✓' },
-      { tool: 'challan', msg: `<strong>generate_challan</strong> → Fine drafted`, result: 'PDF ready' }
-    ];
-
-    steps.forEach((step, i) => {
-      setTimeout(() => {
-        setAgentLogs(prev => [{ ...step, time: new Date().toLocaleTimeString('en-IN', { hour12: false }) }, ...prev].slice(0, 20));
-        if (step.tool === 'challan') {
-          setStats(prev => ({ ...prev, challans: prev.challans + 1 }));
-        }
-      }, i * 600);
-    });
-  };
-
-  // Simulation Effect
-  useEffect(() => {
-    const demoTimer = setInterval(() => {
-      triggerDemo();
-    }, 14000);
-    return () => clearInterval(demoTimer);
-  }, []);
 
   const filteredViolations = violations.filter(v => {
     if (filters.ward && v.ward !== filters.ward) return false;
@@ -146,25 +114,29 @@ export default function AdminDashboard({ onOpenModal }) {
 
         <div className="adm-topbar-stats">
           <div className="adm-tstat">
-            <div className="adm-tstat-num">{stats.violations.toLocaleString('en-IN')}</div>
+            <div className="adm-tstat-num">{stats.totalViolations?.toLocaleString('en-IN') || '0'}</div>
             <div className="adm-tstat-label">Violations Today</div>
           </div>
           <div className="adm-tstat">
-            <div className="adm-tstat-num">{stats.alerts}</div>
+            <div className="adm-tstat-num">{stats.urgentViolations || 0}</div>
             <div className="adm-tstat-label">Active Alerts</div>
           </div>
           <div className="adm-tstat">
-            <div className="adm-tstat-num">{stats.challans}</div>
-            <div className="adm-tstat-label">Challans Issued</div>
+            <div className="adm-tstat-num">{stats.resolvedViolations || 0}</div>
+            <div className="adm-tstat-label">Resolved</div>
           </div>
           <div className="adm-tstat">
-            <div className="adm-tstat-num">{stats.fine}</div>
-            <div className="adm-tstat-label">Fine Recoverable</div>
+            <div className="adm-tstat-num">{Math.round(stats.averageRisk || 0)}%</div>
+            <div className="adm-tstat-label">Avg Risk</div>
           </div>
         </div>
 
         <div className="adm-topbar-right">
-          <div className="adm-live-pill"><span className="adm-live-dot"></span>LIVE</div>
+          <LiveIndicator 
+            isLive={!statsLoading}
+            label="LIVE"
+            additionalInfo={violations.length > 0 ? 'Active' : 'Ready'}
+          />
           <select 
             className="adm-zone-select" 
             value={activeZone}
@@ -173,7 +145,7 @@ export default function AdminDashboard({ onOpenModal }) {
             {ZONES.map(z => <option key={z} value={z}>{z} ▼</option>)}
           </select>
           <div className="adm-clock">{time}</div>
-          <button className="adm-demo-btn" onClick={triggerDemo}>▶ Demo</button>
+          <button className="adm-settings-btn" onClick={() => setShowSettings(true)} title="Settings">⚙️</button>
           <button className="adm-signout-btn" style={{ marginLeft: '10px', height: '30px', padding: '0 10px' }} onClick={signOut}>Sign Out</button>
         </div>
       </header>
@@ -225,10 +197,10 @@ export default function AdminDashboard({ onOpenModal }) {
         <aside className="adm-sidebar">
           <div className="adm-sidebar-section-label">Navigation</div>
           <div className={`adm-nav-item ${activeTab === 'live' ? 'active' : ''}`} onClick={() => setActiveTab('live')}>
-            <span>📡</span> Live Command <span className="adm-nav-badge">{stats.alerts}</span>
+            <span>📡</span> Live Command <span className="adm-nav-badge">{stats.urgentViolations || 0}</span>
           </div>
           <div className={`adm-nav-item ${activeTab === 'violation' ? 'active' : ''}`} onClick={() => setActiveTab('violation')}>
-            <span>📋</span> Violation Log <span className="adm-nav-badge blue">1.2K</span>
+            <span>📋</span> Violation Log <span className="adm-nav-badge blue">{stats.totalViolations?.toLocaleString('en-IN') || '0'}</span>
           </div>
           <div className={`adm-nav-item ${activeTab === 'analytics' ? 'active' : ''}`} onClick={() => setActiveTab('analytics')}>
             <span>📊</span> Analytics
@@ -237,7 +209,7 @@ export default function AdminDashboard({ onOpenModal }) {
             <span>🗺️</span> Heatmap
           </div>
           <div className={`adm-nav-item ${activeTab === 'challans' ? 'active' : ''}`} onClick={() => setActiveTab('challans')}>
-            <span>📄</span> Challans <span className="adm-nav-badge green">{stats.challans}</span>
+            <span>📄</span> Challans <span className="adm-nav-badge green">{stats.resolvedViolations || 0}</span>
           </div>
           <div className={`adm-nav-item ${activeTab === 'search' ? 'active' : ''}`} onClick={() => setActiveTab('search')}>
             <span>🔍</span> NL Search
@@ -410,7 +382,10 @@ export default function AdminDashboard({ onOpenModal }) {
             </div>
           ) : activeTab === 'analytics' ? (
             <div className="adm-heatmap-container">
-              <AnalyticsDashboard />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', height: '100%' }}>
+                <AIInsights violations={filteredViolations} />
+                <AnalyticsDashboard />
+              </div>
             </div>
           ) : activeTab === 'challans' ? (
             <div className="adm-heatmap-container">
@@ -464,6 +439,30 @@ export default function AdminDashboard({ onOpenModal }) {
           </div>
         </div>
       )}
+
+      {/* Settings Modal */}
+      {showSettings && (
+        <div className="adm-modal-overlay" onClick={() => setShowSettings(false)}>
+          <div className="adm-modal-content" onClick={(e) => e.stopPropagation()}>
+            <UserSettings onClose={() => setShowSettings(false)} />
+          </div>
+        </div>
+      )}
+
+      {/* New Violation Toast Alert */}
+      {newViolationToast && (
+        <NewViolationAlert
+          violation={newViolationToast}
+          onDismiss={() => setNewViolationToast(null)}
+        />
+      )}
+
+      {/* TrafficGenie - Universal AI Assistant */}
+      <TrafficGenie 
+        violations={filteredViolations}
+        stats={stats}
+        currentPage={activeTab}
+      />
     </div>
   );
 }

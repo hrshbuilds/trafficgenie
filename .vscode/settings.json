@@ -3,5 +3,6 @@
   "python.analysis.extraPaths": [
     "${workspaceFolder}",
     "${workspaceFolder}/backend"
-  ]
+  ],
+  "python.terminal.useEnvFile": true
 }

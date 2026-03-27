@@ -1,0 +1,430 @@
+/* ═════════════════════════════════════════════════════════════════ */
+/* TrafficGenie - Universal AI Assistant component                    */
+/* ═════════════════════════════════════════════════════════════════ */
+
+/* ────── FLOATING BUTTON ────── */
+.traffic-genie-button {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  color: white;
+  font-size: 24px;
+  cursor: pointer;
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.4);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  gap: 6px;
+  padding: 0;
+  overflow: visible;
+}
+
+.traffic-genie-button:hover {
+  transform: scale(1.12) translateY(-4px);
+  box-shadow: 0 8px 24px rgba(102, 126, 234, 0.6);
+}
+
+.traffic-genie-button:active {
+  transform: scale(0.95);
+}
+
+.traffic-genie-icon {
+  font-size: 28px;
+  animation: float 3s ease-in-out infinite;
+}
+
+.traffic-genie-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  position: absolute;
+  bottom: -24px;
+  white-space: nowrap;
+  background: rgba(102, 126, 234, 0.9);
+  padding: 4px 8px;
+  border-radius: 4px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+
+.traffic-genie-button:hover .traffic-genie-label {
+  opacity: 1;
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+/* ────── MODAL OVERLAY ────── */
+.traffic-genie-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+  backdrop-filter: blur(4px);
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* ────── MODAL CONTAINER ────── */
+.traffic-genie-modal {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  border: 1px solid rgba(102, 126, 234, 0.2);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 500px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+  animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ────── MODAL HEADER ────── */
+.traffic-genie-header {
+  background: linear-gradient(90deg, rgba(102, 126, 234, 0.15) 0%, rgba(118, 75, 162, 0.15) 100%);
+  border-bottom: 1px solid rgba(102, 126, 234, 0.2);
+  padding: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.traffic-genie-title-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.traffic-genie-modal-icon {
+  font-size: 28px;
+}
+
+.traffic-genie-header h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #a0a0ff;
+  letter-spacing: 0.5px;
+}
+
+.traffic-genie-close {
+  background: none;
+  border: none;
+  color: #999;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.traffic-genie-close:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+/* ────── MODAL CONTENT ────── */
+.traffic-genie-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  padding-bottom: 16px;
+  font-size: 13px;
+  color: #ddd;
+  line-height: 1.6;
+}
+
+.traffic-genie-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.traffic-genie-content::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 3px;
+}
+
+.traffic-genie-content::-webkit-scrollbar-thumb {
+  background: rgba(102, 126, 234, 0.3);
+  border-radius: 3px;
+}
+
+.traffic-genie-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(102, 126, 234, 0.5);
+}
+
+/* ────── INTRO STATE ────── */
+.traffic-genie-intro {
+  text-align: left;
+}
+
+.traffic-genie-intro p {
+  margin: 0 0 8px 0;
+}
+
+.traffic-genie-intro strong {
+  color: #a0a0ff;
+  font-size: 14px;
+}
+
+.traffic-genie-intro ul {
+  list-style: none;
+  padding: 8px 0;
+  margin: 8px 0;
+}
+
+.traffic-genie-intro li {
+  padding: 6px 0;
+  color: #999;
+}
+
+/* ────── RESPONSE STATE ────── */
+.traffic-genie-response {
+  animation: slideInDown 0.3s ease;
+}
+
+.traffic-genie-response-text {
+  background: rgba(102, 126, 234, 0.08);
+  border-left: 3px solid #667eea;
+  padding: 12px;
+  border-radius: 6px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  font-size: 13px;
+  line-height: 1.7;
+  color: #e0e0e0;
+}
+
+@keyframes slideInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ────── ERROR STATE ────── */
+.traffic-genie-error {
+  background: rgba(239, 83, 80, 0.1);
+  border-left: 3px solid #ef5350;
+  padding: 12px;
+  border-radius: 6px;
+  color: #ffb3b3;
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+
+.traffic-genie-error strong {
+  color: #ff6b6b;
+}
+
+/* ────── LOADING STATE ────── */
+.traffic-genie-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 20px;
+  color: #999;
+}
+
+.traffic-genie-spinner {
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  border: 3px solid rgba(102, 126, 234, 0.2);
+  border-top-color: #667eea;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ────── INPUT FORM ────── */
+.traffic-genie-form {
+  display: flex;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid rgba(102, 126, 234, 0.2);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.traffic-genie-input {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(102, 126, 234, 0.2);
+  color: white;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-family: inherit;
+  transition: all 0.2s;
+}
+
+.traffic-genie-input::placeholder {
+  color: #666;
+}
+
+.traffic-genie-input:focus {
+  outline: none;
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(102, 126, 234, 0.4);
+}
+
+.traffic-genie-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.traffic-genie-submit {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  color: white;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  font-weight: bold;
+}
+
+.traffic-genie-submit:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.traffic-genie-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ────── ACTION BUTTONS ────── */
+.traffic-genie-actions {
+  display: flex;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid rgba(102, 126, 234, 0.2);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.traffic-genie-new-query,
+.traffic-genie-close-btn {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid rgba(102, 126, 234, 0.3);
+  background: rgba(102, 126, 234, 0.1);
+  color: #a0a0ff;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.traffic-genie-new-query:hover,
+.traffic-genie-close-btn:hover {
+  background: rgba(102, 126, 234, 0.2);
+  border-color: rgba(102, 126, 234, 0.5);
+}
+
+/* ────── RESPONSIVE ────── */
+@media (max-width: 768px) {
+  .traffic-genie-button {
+    bottom: 16px;
+    right: 16px;
+    width: 48px;
+    height: 48px;
+    font-size: 20px;
+  }
+
+  .traffic-genie-modal {
+    max-width: calc(100% - 32px);
+    max-height: calc(100vh - 80px);
+  }
+
+  .traffic-genie-input {
+    font-size: 14px;
+  }
+
+  .traffic-genie-header h2 {
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .traffic-genie-overlay {
+    padding: 8px;
+  }
+
+  .traffic-genie-modal {
+    max-width: 100%;
+    max-height: calc(100vh - 40px);
+  }
+
+  .traffic-genie-content {
+    font-size: 12px;
+  }
+
+  .traffic-genie-response-text {
+    font-size: 12px;
+  }
+}

@@ -56,3 +56,30 @@ class AnalyticsSummary(BaseModel):
 
 class HealthResponse(BaseModel):
     status: str
+
+
+class AnalyzeRequest(BaseModel):
+    """Request for Traffic Genie analysis."""
+    prompt: str
+    context: dict | None = None
+    
+    
+class AnalyzeResponse(BaseModel):
+    """Response from Traffic Genie analysis."""
+    analysis: str
+    text: str | None = None
+    suggestions: list[str] | None = None
+    
+    
+class RecentViolationOut(BaseModel):
+    """Violation for live feed (minimal data)."""
+    id: int
+    emoji: str
+    type: str
+    type_h: str  # Hindi
+    loc: str
+    city: str
+    cam: str
+    pct: float  # confidence
+    status: str  # urgent, active, resolved
+    detected_at: datetime

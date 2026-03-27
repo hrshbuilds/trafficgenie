@@ -24,26 +24,27 @@ export default function SignInModal({ open, onClose, onSwitchToSignUp }) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const fillDemo = () => {
-    setEmail('officer@trafficwatch.in');
-    setPassword('TW@2026');
-    setError('');
-  };
-
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     setError('');
     if (!email || !password) { setError('Please fill in all fields.'); return; }
+    if (password.length < 6) { setError('Password must be at least 6 characters.'); return; }
+    
     setLoading(true);
-    setTimeout(() => {
-      const result = signIn(email, password);
+    try {
+      const result = await signIn(email, password);
       if (result.success) {
-        setEmail(''); setPassword('');
+        setEmail('');
+        setPassword('');
         onClose(true);
       } else {
-        setError(result.error);
+        setError(result.error || 'Sign in failed. Please try again.');
       }
+    } catch (err) {
+      setError('An unexpected error occurred. Please try again.');
+      console.error('Sign in error:', err);
+    } finally {
       setLoading(false);
-    }, 900);
+    }
   };
 
   if (!open) return null;
@@ -56,14 +57,6 @@ export default function SignInModal({ open, onClose, onSwitchToSignUp }) {
           <h3>Sign In to<br /><em>TrafficWatch</em></h3>
         </div>
         <div className="tw-modal-body">
-          <div className="tw-demo-hint" onClick={fillDemo}>
-            <div>
-              <div className="dh-tag">Demo Account</div>
-              <div className="dh-creds">officer@trafficwatch.in · TW@2026</div>
-            </div>
-            <span className="dh-fill">Fill ↗</span>
-          </div>
-
           <label className="tw-field-label">Email Address</label>
           <input className="tw-input" type="email" value={email} placeholder="officer@trafficwatch.in"
             onChange={(e) => setEmail(e.target.value)}

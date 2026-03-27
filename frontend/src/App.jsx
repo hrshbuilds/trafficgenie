@@ -4,6 +4,8 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
 import './index.css';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
+import LoadingSkeleton from './components/common/LoadingSkeleton';
 
 import Navbar from './components/Navbar';
 import Hero from './components/Hero';
@@ -25,7 +27,7 @@ import UploadModal from './components/modals/UploadModal';
 gsap.registerPlugin(ScrollTrigger);
 
 function AppInner() {
-  const { currentUser } = useAuth();
+  const { currentUser, loading } = useAuth();
   const [modal, setModal] = useState(null); // 'signin' | 'signup' | 'camera' | 'upload'
   const [returnTo, setReturnTo] = useState(null);
 
@@ -48,19 +50,36 @@ function AppInner() {
   };
 
   // GSAP scroll + nav effects — only on landing page
+  // ⚠️ MUST be called BEFORE any early returns (React hooks rule)
   useEffect(() => {
     if (currentUser) return; // skip when dashboard is shown
 
-    const reveals = document.querySelectorAll('.reveal');
-    reveals.forEach((el) => {
-      ScrollTrigger.create({
-        trigger: el,
-        start: 'top 88%',
-        onEnter: () => el.classList.add('up'),
+    // Delay to ensure DOM is fully rendered
+    const setupAnimations = () => {
+      const reveals = document.querySelectorAll('.reveal');
+      console.log(`Found ${reveals.length} reveal elements`);
+      
+      reveals.forEach((el) => {
+        // Check if element is already visible in viewport
+        const rect = el.getBoundingClientRect();
+        if (rect.top < window.innerHeight) {
+          el.classList.add('up');
+        } else {
+          ScrollTrigger.create({
+            trigger: el,
+            start: 'top 88%',
+            onEnter: () => el.classList.add('up'),
+          });
+        }
       });
-    });
+    };
 
+    // Give DOM time to render all reveal elements
+    const timeout = setTimeout(setupAnimations, 100);
+
+    // Set up board 3D effect
     const board = document.querySelector('.case-board');
+    let boardCleanup;
     if (board) {
       const onMove = (e) => {
         const r = board.getBoundingClientRect();
@@ -71,7 +90,7 @@ function AppInner() {
       const onLeave = () => gsap.to(board, { rotateY: 0, rotateX: 0, duration: 0.7, ease: 'elastic.out(1,.6)' });
       board.addEventListener('mousemove', onMove);
       board.addEventListener('mouseleave', onLeave);
-      return () => { board.removeEventListener('mousemove', onMove); board.removeEventListener('mouseleave', onLeave); };
+      boardCleanup = () => { board.removeEventListener('mousemove', onMove); board.removeEventListener('mouseleave', onLeave); };
     }
 
     const nav = document.querySelector('nav');
@@ -83,12 +102,19 @@ function AppInner() {
     window.addEventListener('scroll', handleScroll, { passive: true });
 
     return () => {
+      clearTimeout(timeout);
+      if (boardCleanup) boardCleanup();
       ScrollTrigger.getAll().forEach((st) => st.kill());
       window.removeEventListener('scroll', handleScroll);
     };
   }, [currentUser]);
 
-  // ── Admin dashboard (post-login) ──────────────────────────────────
+  // Show loading skeleton while auth is initializing
+  if (loading) {
+    return <LoadingSkeleton type="full-page" />;
+  }
+
+  // ── PROTECTED: Admin dashboard (authenticated users only) ──
   if (currentUser) {
     return (
       <>
@@ -110,18 +136,19 @@ function AppInner() {
     );
   }
 
-  // ── Landing page (pre-login) ──────────────────────────────────────
-  return (
-    <>
-      <Navbar onOpenModal={openModal} />
-      <Hero onOpenSignIn={() => openModal('signin')} />
-      <PhaseDetection />
-      <ViolationsFeed />
-      <ZoneStats />
-      <ToolsSlider />
-      <CityFeed />
-      <Footer />
-      <Toast />
+  // ── PUBLIC: Landing page (unauthenticated users only) ──
+  try {
+    return (
+      <>
+        <Navbar onOpenModal={openModal} />
+        <Hero onOpenSignIn={() => openModal('signin')} />
+        <PhaseDetection />
+        <ViolationsFeed />
+        <ZoneStats />
+        <ToolsSlider />
+        <CityFeed />
+        <Footer />
+        <Toast />
 
       <SignInModal
         open={modal === 'signin'}
@@ -144,14 +171,35 @@ function AppInner() {
         onClose={closeModal}
         onBack={() => openModal('camera')}
       />
-    </>
-  );
+      </>
+    );
+  } catch (err) {
+    console.error('Landing page render error:', err);
+    return (
+      <>
+        <Navbar onOpenModal={openModal} />
+        <div style={{
+          padding: '60px 20px',
+          textAlign: 'center',
+          color: '#fff',
+          background: 'rgba(198, 40, 40, 0.1)',
+          margin: '20px'
+        }}>
+          <h2>⚠️ Page Load Error</h2>
+          <p>{err?.message || 'Failed to load landing page'}</p>
+          <button onClick={() => window.location.reload()}>Reload Page</button>
+        </div>
+      </>
+    );
+  }
 }
 
 export default function App() {
   return (
-    <AuthProvider>
-      <AppInner />
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <AppInner />
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }

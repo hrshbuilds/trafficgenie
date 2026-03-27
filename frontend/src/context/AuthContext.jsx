@@ -1,11 +1,13 @@
 import { createContext, useContext, useState, useCallback } from 'react';
+import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
 
 const AuthContext = createContext(null);
 
-const DUMMY = { email: 'officer@trafficwatch.in', password: 'TW@2026' };
-
 export function AuthProvider({ children }) {
-  const [currentUser, setCurrentUser] = useState(null);
+  // Real Firebase auth
+  const firebaseAuth = useFirebaseAuth();
+  
+  // Toast state
   const [toastMsg, setToastMsg] = useState('');
   const [toastVisible, setToastVisible] = useState(false);
 
@@ -15,30 +17,52 @@ export function AuthProvider({ children }) {
     setTimeout(() => setToastVisible(false), 3500);
   }, []);
 
-  const signIn = useCallback((email, password) => {
-    if (email === DUMMY.email && password === DUMMY.password) {
-      const user = { name: 'Officer Sharma', email };
-      setCurrentUser(user);
-      showToast(`Welcome, Officer! You're now signed in. ✓`);
-      return { success: true };
+  // Wrapper for signIn that shows toast
+  const signIn = useCallback(async (email, password) => {
+    const result = await firebaseAuth.signIn(email, password);
+    if (result.success) {
+      showToast(`Welcome! You're now signed in. ✓`);
+    } else {
+      showToast(`Sign in failed: ${result.error}`);
     }
-    return { success: false, error: 'Invalid credentials. Use the demo account above.' };
-  }, [showToast]);
+    return result;
+  }, [firebaseAuth, showToast]);
 
-  const signUp = useCallback((name, email) => {
-    const user = { name, email };
-    setCurrentUser(user);
-    showToast(`Welcome, ${name.split(' ')[0]}! Account created. ✓`);
-    return { success: true };
-  }, [showToast]);
+  // Wrapper for signUp that shows toast
+  const signUp = useCallback(async (email, password, name) => {
+    const result = await firebaseAuth.signUp(email, password, name);
+    if (result.success) {
+      showToast(`Welcome, ${name.split(' ')[0]}! Account created. ✓`);
+    } else {
+      showToast(`Sign up failed: ${result.error}`);
+    }
+    return result;
+  }, [firebaseAuth, showToast]);
 
-  const signOut = useCallback(() => {
-    setCurrentUser(null);
-    showToast('Signed out successfully.');
-  }, [showToast]);
+  // Wrapper for signOut that shows toast
+  const signOut = useCallback(async () => {
+    try {
+      await firebaseAuth.signOut();
+      showToast('Signed out successfully.');
+    } catch (err) {
+      showToast(`Sign out failed: ${err.message}`);
+    }
+  }, [firebaseAuth, showToast]);
 
   return (
-    <AuthContext.Provider value={{ currentUser, signIn, signUp, signOut, showToast, toastMsg, toastVisible }}>
+    <AuthContext.Provider 
+      value={{ 
+        currentUser: firebaseAuth.currentUser,
+        loading: firebaseAuth.loading,
+        error: firebaseAuth.error,
+        signIn,
+        signUp,
+        signOut,
+        showToast,
+        toastMsg,
+        toastVisible,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

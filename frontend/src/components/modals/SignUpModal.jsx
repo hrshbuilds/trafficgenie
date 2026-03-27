@@ -19,19 +19,28 @@ export default function SignUpModal({ open, onClose, onSwitchToSignIn }) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     setError('');
     if (!name || !email || !password) { setError('Please fill all required fields.'); return; }
     if (password.length < 6) { setError('Password must be at least 6 characters.'); return; }
     if (password !== confirm) { setError('Passwords do not match.'); return; }
+    if (!/^\S+@\S+\.\S+$/.test(email)) { setError('Please enter a valid email address.'); return; }
 
     setLoading(true);
-    setTimeout(() => {
-      signUp(name, email);
-      setName(''); setBadge(''); setEmail(''); setPassword(''); setConfirm('');
-      onClose(true);
+    try {
+      const result = await signUp(email, password, name);
+      if (result.success) {
+        setName(''); setBadge(''); setEmail(''); setPassword(''); setConfirm('');
+        onClose(true);
+      } else {
+        setError(result.error || 'Sign up failed. Please try again.');
+      }
+    } catch (err) {
+      setError('An unexpected error occurred. Please try again.');
+      console.error('Sign up error:', err);
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
   };
 
   if (!open) return null;

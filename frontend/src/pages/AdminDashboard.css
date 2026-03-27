@@ -644,3 +644,388 @@
     .adm-video-infobar { grid-template-columns: repeat(3, 1fr); }
     .adm-topbar-brand { font-size: 14px; gap: 6px; }
 }
+
+/* ─── SETTINGS BUTTON & MODAL ─── */
+
+.adm-settings-btn {
+    background: linear-gradient(135deg, rgba(82, 183, 136, 0.2) 0%, rgba(45, 143, 107, 0.2) 100%);
+    border: 1px solid rgba(82, 183, 136, 0.3);
+    color: #52b788;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.adm-settings-btn:hover {
+    background: linear-gradient(135deg, rgba(82, 183, 136, 0.3) 0%, rgba(45, 143, 107, 0.3) 100%);
+    border-color: #52b788;
+    box-shadow: 0 0 8px rgba(82, 183, 136, 0.2);
+}
+
+.adm-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    animation: fadeInOverlay 0.3s ease;
+}
+
+.adm-modal-content {
+    max-width: 600px;
+    width: 90%;
+    max-height: 85vh;
+    overflow-y: auto;
+    animation: slideUpModal 0.3s ease;
+}
+
+@keyframes fadeInOverlay {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideUpModal {
+    from {
+        transform: translateY(30px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* ─── MOBILE RESPONSIVE ─── */
+
+@media (max-width: 1200px) {
+    .adm-topbar-stats {
+        gap: 4px;
+        margin-left: 12px;
+    }
+
+    .adm-tstat {
+        padding: 3px 8px;
+        font-size: 11px;
+    }
+
+    .adm-tstat-num {
+        font-size: 13px;
+    }
+
+    .adm-tstat-label {
+        font-size: 9px;
+    }
+}
+
+@media (max-width: 1024px) {
+    .adm-body {
+        flex-direction: column;
+    }
+
+    .adm-sidebar {
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid #2a3f5f;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        max-height: 100px;
+        overflow-x: auto;
+        overflow-y: hidden;
+    }
+
+    .adm-content {
+        width: 100%;
+    }
+}
+
+@media (max-width: 768px) {
+    .adm-shell {
+        height: auto;
+        min-height: 100vh;
+    }
+
+    /* Top bar adjustments */
+    .adm-topbar {
+        flex-wrap: wrap;
+        height: auto;
+        padding: 8px;
+        gap: 8px;
+    }
+
+    .adm-topbar-brand {
+        font-size: 12px;
+        gap: 6px;
+        order: 1;
+        flex: 0 0 100%;
+    }
+
+    .adm-topbar-brand svg {
+        width: 18px;
+        height: 18px;
+    }
+
+    .adm-topbar-stats {
+        order: 2;
+        flex: 1;
+        gap: 2px;
+        margin-left: 0;
+    }
+
+    .adm-tstat {
+        padding: 2px 6px;
+        font-size: 9px;
+        flex: 1;
+        min-width: 50px;
+    }
+
+    .adm-tstat-num {
+        font-size: 11px;
+    }
+
+    .adm-tstat-label {
+        font-size: 8px;
+    }
+
+    .adm-topbar-right {
+        order: 3;
+        flex: 0 0 100%;
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+    }
+
+    .adm-clock {
+        font-size: 11px;
+        padding: 4px 8px;
+    }
+
+    .adm-zone-select,
+    .adm-settings-btn,
+    .adm-signout-btn {
+        font-size: 11px;
+        padding: 4px 8px;
+    }
+
+    /* Filter bar adjustments */
+    .adm-filterbar {
+        flex-wrap: wrap;
+        gap: 4px;
+        padding: 8px;
+    }
+
+    .adm-filter-label {
+        font-size: 12px;
+    }
+
+    .adm-filter-group {
+        flex: 1;
+        min-width: 100px;
+    }
+
+    .adm-filter-group select,
+    .adm-filter-group input {
+        font-size: 11px;
+        padding: 4px;
+    }
+
+    /* Sidebar transformation */
+    .adm-sidebar {
+        display: none;
+    }
+
+    .adm-sidebar.mobile-expanded {
+        display: block;
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background: #0d1720;
+        z-index: 100;
+        overflow-y: auto;
+    }
+
+    /* Content adjustments */
+    .adm-content {
+        padding: 8px;
+    }
+
+    .adm-video-section {
+        margin-bottom: 12px;
+    }
+
+    .adm-video-frame {
+        height: 200px;
+    }
+
+    .adm-section-grid {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+
+    /* Card adjustments */
+    .v-card {
+        margin: 8px 0;
+        padding: 10px;
+    }
+
+    .v-card-header {
+        font-size: 12px;
+        gap: 6px;
+    }
+
+    .v-icon {
+        font-size: 18px;
+    }
+
+    .v-type {
+        font-size: 12px;
+    }
+
+    .v-stats {
+        gap: 4px;
+    }
+
+    .v-stat {
+        font-size: 10px;
+    }
+
+    .v-stat-label {
+        display: none;
+    }
+
+    /* Modal adjustments */
+    .adm-modal-content {
+        width: 95%;
+        max-height: 80vh;
+    }
+
+    /* Violation cards in list */
+    .adm-violation-row {
+        padding: 8px;
+    }
+
+    .adm-violation-type {
+        font-size: 11px;
+    }
+
+    .adm-violation-confidence {
+        font-size: 10px;
+    }
+}
+
+@media (max-width: 480px) {
+    .adm-topbar {
+        padding: 6px;
+    }
+
+    .adm-topbar-brand {
+        font-size: 11px;
+    }
+
+    .adm-topbar-brand svg {
+        display: none;
+    }
+
+    .adm-topbar-stats {
+        gap: 1px;
+    }
+
+    .adm-tstat {
+        padding: 2px 4px;
+        font-size: 8px;
+        min-width: 40px;
+    }
+
+    .adm-tstat-num {
+        font-size: 10px;
+    }
+
+    .adm-video-frame {
+        height: 150px;
+    }
+
+    .adm-filter-group {
+        min-width: 80px;
+    }
+
+    .adm-filter-group select,
+    .adm-filter-group input {
+        font-size: 10px;
+        padding: 3px;
+    }
+
+    .adm-clear-filter {
+        font-size: 10px;
+    }
+
+    /* Card text sizes */
+    .v-card-header {
+        font-size: 11px;
+    }
+
+    .v-type {
+        font-size: 11px;
+    }
+
+    .v-loc {
+        font-size: 10px;
+    }
+}
+
+/* ─── PERFORMANCE OPTIMIZATIONS ─── */
+
+/* Reduce animations on low-end devices */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* Optimize for users on slow connections */
+@media (prefers-reduced-data: reduce) {
+    img {
+        background: #ccc;
+    }
+
+    .adm-video-frame video {
+        display: none;
+    }
+}
+
+/* Dark mode optimization */
+@media (prefers-color-scheme: dark) {
+    .adm-shell {
+        background: #0a0f18;
+    }
+
+    .adm-topbar {
+        background: #141d2d;
+    }
+}
+
+/* Improve performance on touch devices */
+@media (hover: none) and (pointer: coarse) {
+    .v-card:hover {
+        /* Disable hover effects on touch devices */
+    }
+
+    button {
+        min-height: 44px;
+        min-width: 44px;
+        padding: 10px;
+    }
+}
