@@ -67,10 +67,14 @@ class Settings(BaseSettings):
     ENABLE_REAL_TIME_UPDATES: bool = True
     ENABLE_GEMINI_INSIGHTS: bool = True
 
+    # Traffic rules (left/right side)
+    TRAFFIC_DIRECTION: Literal["left", "right"] = "right"
+
     class Config:
         """Pydantic config."""
         env_file = ".env"
         case_sensitive = True
+        extra = "ignore"  # Ignore extra fields from .env
 
     @field_validator("ALLOWED_ORIGINS", mode="before")
     @classmethod
