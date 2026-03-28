@@ -59,6 +59,7 @@ function NashikMap({ hotspots, selected, onSelect, riskFilter }) {
     left: `${((lng - LNG_MIN) / lngSpan) * 100}%`,
   });
   const maxV = Math.max(...hotspots.map(h=>h.violations));
+  const safeMaxV = Number.isFinite(maxV) && maxV > 0 ? maxV : 1;
 
   return (
     <div style={{background:"#0a1628",position:"relative",height:460,overflow:"hidden"}}>
@@ -91,7 +92,6 @@ function NashikMap({ hotspots, selected, onSelect, riskFilter }) {
       </div>
 
       {hotspots.map(h=>{
-        const safeMaxV = Number.isFinite(maxV) && maxV > 0 ? maxV : 1;
         const scale = h.violations / safeMaxV;
         const clampedScale = Math.max(0, Math.min(scale, 1));
         const r = 10 + clampedScale * 28;
