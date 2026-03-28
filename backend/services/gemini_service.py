@@ -204,6 +204,281 @@ Be concise. No markdown. Ensure accuracy for legal documentation."""
             logger.error(f"Gemini response generation error: {e}")
             return "Unable to analyze at this moment. Please consult the violation log directly."
 
+    def generate_context_aware_response(
+        self, 
+        user_query: str,
+        current_page: str,
+        page_data: dict,
+        live_stats: dict,
+        recent_violations: list,
+        hotspots: list
+    ) -> dict:
+        """Generate AI response using current app context and live data.
+
+        Args:
+            user_query: User's question or request
+            current_page: Current page in the app (e.g., 'dashboard', 'violations')
+            page_data: Current page-specific data
+            live_stats: Live traffic statistics
+            recent_violations: Recent violation data
+            hotspots: Top violation hotspots
+
+        Returns:
+            Dict with 'response', 'context_used', 'suggestions'
+        """
+        if not self.is_available():
+            logger.debug("Gemini not available")
+            return {
+                "response": "Traffic analysis system is currently offline. Please try again later.",
+                "context_used": False,
+                "suggestions": []
+            }
+
+        try:
+            # Build context-enriched prompt
+            context_prompt = self._build_context_prompt(
+                user_query=user_query,
+                current_page=current_page,
+                page_data=page_data,
+                live_stats=live_stats,
+                recent_violations=recent_violations,
+                hotspots=hotspots
+            )
+
+            response = self._model.generate_content(context_prompt)
+            response_text = response.text or "Unable to generate response"
+
+            # Extract suggestions if any
+            suggestions = self._extract_suggestions(response_text)
+
+            return {
+                "response": response_text,
+                "context_used": True,
+                "suggestions": suggestions,
+                "context_page": current_page,
+            }
+
+        except Exception as e:
+            import traceback
+            error_str = str(e).lower()
+            logger.error(f"Context-aware response generation error: {e}")
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            
+            # Use data-driven fallback instead of failing completely
+            logger.info("Using data-driven fallback response")
+            fallback_response = self._generate_data_driven_response(
+                user_query=user_query,
+                current_page=current_page,
+                live_stats=live_stats,
+                recent_violations=recent_violations,
+                hotspots=hotspots
+            )
+            
+            # Add error context to fallback
+            if "quota" in error_str or "429" in error_str:
+                fallback_response["note"] = "API quota exceeded - providing data-driven insights instead"
+                fallback_response["status"] = "quota_exceeded"
+            else:
+                fallback_response["note"] = "AI service temporarily unavailable - providing data-driven insights"
+                fallback_response["status"] = "degraded"
+            
+            fallback_response["error"] = str(e)
+            return fallback_response
+
+    def _build_context_prompt(
+        self,
+        user_query: str,
+        current_page: str,
+        page_data: dict,
+        live_stats: dict,
+        recent_violations: list,
+        hotspots: list
+    ) -> str:
+        """Build a context-enriched prompt for Gemini."""
+        
+        violations_text = ""
+        if recent_violations:
+            violations_text = "\n".join([
+                f"- {v.get('type', 'Unknown')} at {v.get('location', 'Unknown')} "
+                f"(Confidence: {v.get('confidence', 0):.1%})"
+                for v in recent_violations[:5]
+            ])
+
+        hotspots_text = ""
+        if hotspots:
+            hotspots_text = "\n".join([
+                f"- {h.get('location', 'Unknown')}: {h.get('violation_count', 0)} violations"
+                for h in hotspots[:5]
+            ])
+
+        prompt = f"""You are TrafficGenie - an AI assistant for traffic violation management.
+You have access to real-time traffic data and must provide contextual, actionable responses.
+
+USER QUERY: {user_query}
+
+CURRENT APP CONTEXT:
+- Page: {current_page}
+- Page Data: {page_data}
+
+LIVE TRAFFIC STATISTICS:
+- Total Violations: {live_stats.get('totalViolations', 0)}
+- Pending Challans: {live_stats.get('pendingChallans', 0)}
+- Reviewed Challans: {live_stats.get('reviewedChallans', 0)}
+- Approved Challans: {live_stats.get('approvedChallans', 0)}
+- Active Cameras: {live_stats.get('activeCameras', 0)}
+
+RECENT VIOLATIONS:
+{violations_text or "No recent violations"}
+
+HOTSPOT AREAS:
+{hotspots_text or "No hotspots data"}
+
+INSTRUCTIONS:
+1. Use the live data to provide context-aware insights
+2. Reference the current page ({current_page}) to tailor your response
+3. If asking about hotspots/statistics, use the data provided
+4. Provide actionable recommendations
+5. Keep response concise but informative
+6. If data is incomplete, acknowledge it and provide general guidance
+
+Respond in a conversational, helpful manner suitable for a traffic management officer."""
+
+        return prompt
+
+    def _extract_suggestions(self, response_text: str) -> list:
+        """Extract action suggestions from Gemini response."""
+        suggestions = []
+        
+        lines = response_text.split('\n')
+        for line in lines:
+            if any(keyword in line.lower() for keyword in ['recommend', 'suggest', 'should', 'consider', 'deploy']):
+                cleaned = line.strip().lstrip('-•*').strip()
+                if cleaned and len(cleaned) > 10:
+                    suggestions.append(cleaned)
+        
+        return suggestions[:3]  # Return top 3 suggestions
+    def _generate_data_driven_response(
+        self,
+        user_query: str,
+        current_page: str,
+        live_stats: dict,
+        recent_violations: list,
+        hotspots: list
+    ) -> dict:
+        """Generate intelligent response based purely on data when Gemini is unavailable.
+        
+        This provides useful insights to officers using statistical analysis and
+        rule-based logic without requiring the Gemini API.
+        """
+        query_lower = user_query.lower()
+        
+        # Extract insights from data
+        total_violations = live_stats.get('totalViolations', 0)
+        pending_challans = live_stats.get('pendingChallans', 0)
+        approved_challans = live_stats.get('approvedChallans', 0)
+        by_type = live_stats.get('byType', {})
+        
+        response_parts = []
+        suggestions = []
+        
+        # Check if query is about hotspots
+        if any(word in query_lower for word in ['hotspot', 'where', 'location', 'deploy', 'area']):
+            if hotspots:
+                top_hotspot = hotspots[0]
+                response_parts.append(
+                    f"Based on today's data, the major hotspot is {top_hotspot['location']} "
+                    f"with {top_hotspot['violation_count']} violations "
+                    f"({top_hotspot['avg_confidence']:.0f}% confidence average)."
+                )
+                if len(hotspots) > 1:
+                    secondary = hotspots[1]
+                    response_parts.append(
+                        f"Secondary hotspot: {secondary['location']} with {secondary['violation_count']} violations."
+                    )
+                suggestions.extend([
+                    f"Deploy officers to {top_hotspot['location']}",
+                    f"Increase patrols in {secondary['location'] if len(hotspots) > 1 else top_hotspot['location']}",
+                    "Focus on peak hours"
+                ])
+        
+        # Check if query is about total violations or statistics
+        elif any(word in query_lower for word in ['total', 'how many', 'count', 'violations today', 'statistics']):
+            response_parts.append(
+                f"Today's statistics: {total_violations} total violations detected, "
+                f"{pending_challans} pending challans, {approved_challans} approved."
+            )
+            
+            # Find most common violation type
+            if by_type:
+                most_common_type = max(by_type, key=by_type.get)
+                most_common_count = by_type[most_common_type]
+                response_parts.append(
+                    f"Most prevalent violation type: {most_common_type} ({most_common_count} cases, "
+                    f"{most_common_count/total_violations*100:.0f}% of total)."
+                )
+                suggestions.append(f"Focus enforcement on {most_common_type} violations")
+            
+            suggestions.extend([
+                "Review pending challans",
+                "Check high-confidence violations"
+            ])
+        
+        # Check if query is about recent violations
+        elif any(word in query_lower for word in ['recent', 'latest', 'what happened', 'just now']):
+            if recent_violations:
+                latest = recent_violations[0]
+                response_parts.append(
+                    f"Most recent violation: {latest.get('type', 'Unknown')} at {latest.get('location', 'Unknown')} "
+                    f"(Plate: {latest.get('plate', 'N/A')}, Confidence: {latest.get('confidence', 0):.0f}%)"
+                )
+            response_parts.append(f"There are {len(recent_violations)} violations in the recent activity.")
+            suggestions.append("Review recent violations for follow-up")
+        
+        # Check if query is about recommendations
+        elif any(word in query_lower for word in ['recommend', 'suggest', 'should', 'action', 'what should']):
+            if pending_challans > 20:
+                response_parts.append(
+                    f"High challan backlog: {pending_challans} pending. "
+                    "Recommend prioritizing review and approval workflow."
+                )
+                suggestions.append("Clear pending challan backlog")
+            
+            if hotspots:
+                top_hotspot = hotspots[0]
+                if top_hotspot['violation_count'] > 5:
+                    response_parts.append(
+                        f"Hotspot {top_hotspot['location']} shows {top_hotspot['violation_count']} violations. "
+                        "Deploy additional officers there."
+                    )
+                    suggestions.append(f"Deploy to {top_hotspot['location']}")
+            
+            if not response_parts:
+                response_parts.append(
+                    "Recommended actions: Check high-confidence violations, "
+                    "clear pending challans, and deploy to hotspot areas."
+                )
+        
+        # Generic response for other queries
+        else:
+            response_parts.append(
+                f"Current traffic situation summary: {total_violations} violations, "
+                f"{pending_challans} pending challans. "
+            )
+            if hotspots:
+                response_parts.append(f"Top area: {hotspots[0]['location']}.")
+            suggestions.extend(["Review violations", "Check hotspots", "Update status"])
+        
+        # Build final response
+        response_text = " ".join(response_parts) if response_parts else "Data query completed. Please check the statistics dashboard."
+        
+        return {
+            "response": response_text,
+            "context_used": True,
+            "suggestions": suggestions[:3],
+            "context_page": current_page,
+            "data_driven": True,
+        }
+
 
 # Global instance
 gemini_service = GeminiService()
