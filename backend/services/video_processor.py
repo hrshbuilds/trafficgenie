@@ -24,6 +24,7 @@ from config import settings
 from fastapi_db import SessionLocal
 from fastapi_models import Camera, Challan, Evidence, Violation, Zone
 from violation_logic import detect_triple_riding
+from utils.yolo import resolve_label
 
 logger = logging.getLogger(__name__)
 
@@ -123,7 +124,7 @@ class VideoProcessor:
                     cls = int(box.cls[0])
                     conf = float(box.conf[0])
                     x1, y1, x2, y2 = map(int, box.xyxy[0])
-                    label = self._resolve_label(self.model.names, cls).lower()
+                    label = resolve_label(self.model.names, cls).lower()
 
                     if label == "person" and conf > 0.5:
                         persons.append((x1, y1, x2, y2))
@@ -233,15 +234,6 @@ class VideoProcessor:
         if not fps or fps <= 0:
             return 5
         return max(1, int(round(fps / target_fps)))
-
-    @staticmethod
-    def _resolve_label(names, class_id: int) -> str:
-        """Resolve YOLO class label for dict/list/tuple `names` payloads."""
-        if isinstance(names, dict):
-            return str(names.get(class_id, "unknown"))
-        if isinstance(names, (list, tuple)) and 0 <= class_id < len(names):
-            return str(names[class_id])
-        return "unknown"
 
     @staticmethod
     def _event_signature(violation_type: str, bike_box: Tuple[int, int, int, int]) -> Tuple[str, int, int]:

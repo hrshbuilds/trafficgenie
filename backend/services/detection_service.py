@@ -13,6 +13,7 @@ from ultralytics import YOLO
 from config import settings
 from core.exceptions import DetectionError
 from core.logger import get_logger
+from utils.yolo import resolve_label
 
 logger = get_logger(__name__)
 
@@ -161,7 +162,7 @@ class DetectionService:
                 conf = float(box.conf[0])
                 x1, y1, x2, y2 = map(int, box.xyxy[0])
 
-                label = self._resolve_label(self.model.names, cls)
+                label = resolve_label(self.model.names, cls)
 
                 if label == "person":
                     persons.append((x1, y1, x2, y2, conf))
@@ -204,19 +205,6 @@ class DetectionService:
             logger.warning(f"Error processing frame {frame_number}: {e}")
 
         return violations
-
-    @staticmethod
-    def _resolve_label(names, class_id: int) -> str:
-        """Resolve class label from YOLO `names` payload.
-
-        YOLO can return `names` as a dict, list, or tuple depending on model/runtime.
-        This helper keeps label resolution backward-compatible across versions.
-        """
-        if isinstance(names, dict):
-            return names.get(class_id, "unknown")
-        if isinstance(names, (list, tuple)) and 0 <= class_id < len(names):
-            return str(names[class_id])
-        return "unknown"
 
     @staticmethod
     def _detect_triple_riding(
@@ -306,7 +294,7 @@ class DetectionService:
                 helmet_detected = False
                 for box in result.boxes:
                     cls = int(box.cls[0])
-                    label = self._resolve_label(self.helmet_model.names, cls)
+                    label = resolve_label(self.helmet_model.names, cls)
                     if label.lower() in ("helmet", "with_helmet"):
                         helmet_detected = True
                         break
