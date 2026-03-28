@@ -1,8 +1,8 @@
-# 🚀 Quick Start - TrafficVision with Live Data
+# 🚀 Quick Start - TrafficGenie with Live Data
 
 ## What Was Added ✨
 
-Your TrafficVision backend now has:
+Your TrafficGenie backend now has:
 
 1. **✅ Database Seeding** - Generates 50+ realistic violations on startup
 2. **✅ Live Feed API** - Real-time violation data for your dashboard
@@ -16,7 +16,7 @@ Your TrafficVision backend now has:
 ### Step 1: Start Backend Server
 
 ```bash
-cd /workspaces/TrafficVision/backend
+cd d:\genieharsh\trafficgenie\backend
 python main.py
 ```
 
@@ -30,7 +30,7 @@ python main.py
 
 ```bash
 # In a new terminal:
-cd /workspaces/TrafficVision/backend
+cd d:\genieharsh\trafficgenie\backend
 
 # Quick test (requires Python requests package)
 pip install requests

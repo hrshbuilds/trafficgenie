@@ -1,5 +1,5 @@
 """
-Gemini AI integration service for TrafficVision backend.
+Gemini AI integration service for TrafficGenie backend.
 Generates violation insights, risk analysis, and recommendations.
 """
 from typing import Optional

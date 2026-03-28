@@ -5,7 +5,7 @@ All business logic errors should raise these exceptions.
 
 
 class TrafficVisionException(Exception):
-    """Base exception for all TrafficVision errors."""
+    """Base exception for all TrafficGenie errors."""
 
     def __init__(
         self,

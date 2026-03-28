@@ -1,5 +1,5 @@
 """
-Firebase integration service for TrafficVision backend.
+Firebase integration service for TrafficGenie backend.
 Handles Firestore, Cloud Storage, and admin operations.
 """
 import json

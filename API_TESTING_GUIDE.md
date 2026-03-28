@@ -1,6 +1,6 @@
 # API Testing Guide
 
-> Complete guide for testing TrafficVision APIs with curl, Postman, and Python
+> Complete guide for testing TrafficGenie APIs with curl, Postman, and Python
 
 ---
 
@@ -46,7 +46,7 @@ curl http://localhost:8000/api/version
 **Expected Response:**
 ```json
 {
-  "app_name": "TrafficVision",
+  "app_name": "TrafficGenie",
   "version": "1.2.0",
   "environment": "development"
 }
@@ -425,7 +425,7 @@ Status: `400`
 
 ### Import into Postman
 
-1. Create new collection: "TrafficVision"
+1. Create new collection: "TrafficGenie"
 2. Add these requests:
 
 **Request 1: Health Check**
@@ -511,7 +511,7 @@ HEADERS = {
     # "Authorization": "Bearer <firebase-token>"  # Uncomment for protected routes
 }
 
-class TrafficVisionClient:
+class TrafficGenieClient:
     def __init__(self, base_url=BASE_URL, token=None):
         self.base_url = base_url
         self.session = requests.Session()
@@ -569,7 +569,7 @@ class TrafficVisionClient:
 
 
 # Usage
-client = TrafficVisionClient()
+client = TrafficGenieClient()
 
 # Health check
 print(client.health_check())

@@ -1,5 +1,5 @@
 """
-Pytest fixtures and test utilities for TrafficVision backend.
+Pytest fixtures and test utilities for TrafficGenie backend.
 Run: pytest tests/
 """
 

@@ -86,8 +86,68 @@ export function useViolations(options = {}) {
 }
 
 /**
+ * Transform API violation data to UI format
+ * @param {Object} v - API violation object
+ * @returns {Object} Transformed violation with UI fields
+ */
+function transformViolationData(v) {
+  const iconMap = {
+    'Signal Jump': '🚦',
+    'Wrong Lane': '🛣️',
+    'No Helmet': '🪖',
+    'Triple Riding': '🏍️',
+    'No License Plate': '📝',
+    'Speeding': '⚡',
+    'Mobile Use': '📱',
+    'Zebra Crossing': '🚶',
+  };
+
+  const hindiMap = {
+    'Signal Jump': 'लाल बत्ती',
+    'Wrong Lane': 'गलत दिशा',
+    'No Helmet': 'बिना हेलमेट',
+    'Triple Riding': 'तीन सवारी',
+    'No License Plate': 'लाइसेंस न होना',
+    'Speeding': 'गति उल्लंघन',
+    'Mobile Use': 'मोबाइल उपयोग',
+    'Zebra Crossing': 'ज़ेब्रा क्रॉसिंग',
+  };
+
+  const statusMap = {
+    'pending': 'active',
+    'approved': 'resolved',
+    'rejected': 'urgent'
+  };
+
+  const detectedDate = new Date(v.detected_at);
+  const time = detectedDate.toLocaleTimeString('en-IN', { hour12: false });
+  
+  // Base risk calculation on confidence
+  const risk = Math.round(v.confidence * 0.8);
+
+  return {
+    id: v.id,
+    type: v.type,
+    type_hi: hindiMap[v.type] || v.type,
+    icon: iconMap[v.type] || '🚗',
+    status: statusMap[v.challan_status] || 'active',
+    conf: Math.round(v.confidence),
+    loc: v.location,
+    ward: v.ward,
+    cam: `CAM-${v.id % 9 + 1}`,
+    plate: v.plate,
+    risk: risk,
+    narration: `${v.type} detected at ${v.location}. Fine: ₹${risk >= 65 ? 2000 : 1000}.`,
+    time: time,
+    detected_at: v.detected_at,
+    zone: v.zone,
+  };
+}
+
+/**
  * Real-time hook using Firestore listeners
  * Updates live as violations are added to database
+ * Falls back to API if Firestore fails
  * @param {Object} options - {limit}
  */
 export function useRealtimeViolations(options = {}) {
@@ -96,17 +156,58 @@ export function useRealtimeViolations(options = {}) {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    // Try Firestore first
-    const unsubscribe = subscribeToViolations(
-      (data) => {
-        setViolations(data);
-        setLoading(false);
-      },
-      options
-    );
+    let isMounted = true;
+    let firebaseUnsubscribe = null;
+
+    // Try to subscribe to Firestore
+    try {
+      firebaseUnsubscribe = subscribeToViolations(
+        (data) => {
+          if (isMounted) {
+            if (data && data.length > 0) {
+              const transformed = data.map(v => transformViolationData(v));
+              setViolations(transformed);
+              setError(null);
+            } else {
+              // If Firestore is empty, try API as fallback
+              fetchFromAPI();
+            }
+            setLoading(false);
+          }
+        },
+        options
+      );
+    } catch (err) {
+      // If Firestore subscription fails, fall back to API
+      if (isMounted) {
+        console.warn('Firestore subscription failed, using API fallback:', err.message);
+        fetchFromAPI();
+      }
+    }
+
+    // Fallback function to fetch from API
+    async function fetchFromAPI() {
+      try {
+        const data = await violationApi.fetchViolations({ limit: options.limit || 50 });
+        if (isMounted) {
+          const transformed = data.map(v => transformViolationData(v));
+          setViolations(transformed);
+          setError(null);
+          setLoading(false);
+        }
+      } catch (err) {
+        if (isMounted) {
+          setError(err.message || 'Failed to fetch violations');
+          setLoading(false);
+        }
+      }
+    }
 
     return () => {
-      unsubscribe();
+      isMounted = false;
+      if (firebaseUnsubscribe) {
+        firebaseUnsubscribe();
+      }
     };
   }, [options.limit]);
 
