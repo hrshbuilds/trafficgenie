@@ -47,16 +47,27 @@ const ZONES = [
 export default function AdminDashboard({ onOpenModal }) {
   const { signOut } = useAuth();
   
-  // Real-time data from Firebase
-  const { violations, loading: violationsLoading } = useRealtimeViolations({ limit: 50 });
+  // Real-time data from Firebase/API
+  const { violations: realViolations, loading: violationsLoading } = useRealtimeViolations({ limit: 50 });
   const { logs: agentLogs, loading: logsLoading } = useAgentLogs({ limit: 20 });
   const { stats, loading: statsLoading } = useRealtimeStats();
+  
+  // Use real violations if available, otherwise use INITIAL_VIOLATIONS as fallback
+  // Ensure we always have data
+  const violations = (Array.isArray(realViolations) && realViolations.length > 0) ? realViolations : INITIAL_VIOLATIONS;
   
   // New violations (for toast alerts)
   const [newViolationToast, setNewViolationToast] = useState(null);
   useRealtimeNewViolations((violation) => {
     setNewViolationToast(violation);
   });
+
+  // Log for debugging
+  useEffect(() => {
+    if (violations.length > 0) {
+      console.log(`📊 Dashboard loaded with ${violations.length} violations`);
+    }
+  }, [violations.length]);
 
   // Local UI state
   const [time, setTime] = useState(new Date().toLocaleTimeString('en-IN', { hour12: false }));

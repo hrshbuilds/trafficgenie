@@ -1,5 +1,5 @@
 """
-Video Processing Service for TrafficVision.
+Video Processing Service for TrafficGenie.
 Processes video files to detect violations and store them in database.
 """
 import logging
@@ -22,7 +22,11 @@ except ImportError:
 from config import settings
 from fastapi_db import SessionLocal
 from fastapi_models import Camera, Challan, Evidence, Violation, Zone
-from violation_logic import detect_triple_riding
+from violation_logic import (
+    detect_triple_riding,
+    detect_no_helmet,
+    detect_wrong_side,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +50,24 @@ class VideoProcessor:
         except Exception as e:
             logger.error(f"Failed to load YOLO model: {e}")
             self.model = None
+
+        # Load separate helmet model if configured
+        self.helmet_model = None
+        if settings.HELMET_MODEL_PATH:
+            helmet_path = os.path.join(settings.BASE_DIR, settings.HELMET_MODEL_PATH)
+            if os.path.exists(helmet_path):
+                try:
+                    self.helmet_model = YOLO(helmet_path)
+                    logger.info(f"Helmet model loaded: {helmet_path}")
+                except Exception as e:
+                    logger.error(f"Failed to load helmet model: {e}")
+                    self.helmet_model = None
+            else:
+                logger.warning(f"Helmet model path does not exist: {helmet_path}")
+
+        # Default to main model if no helmet model specified
+        if self.helmet_model is None:
+            self.helmet_model = self.model
 
     def process_video(
         self,
@@ -108,6 +130,8 @@ class VideoProcessor:
 
                 persons = []
                 bikes = []
+                helmets = []
+                vehicles = []
 
                 # Extract detections
                 for box in boxes:
@@ -116,13 +140,36 @@ class VideoProcessor:
                     x1, y1, x2, y2 = map(int, box.xyxy[0])
                     label = self.model.names[cls]
 
-                    if label == "person" and conf > 0.5:
-                        persons.append((x1, y1, x2, y2))
-                    elif label == "motorcycle" and conf > 0.5:
-                        bikes.append((x1, y1, x2, y2))
+                    if conf <= 0.5:
+                        continue
 
-                # Detect triple riding
-                violations = detect_triple_riding(persons, bikes)
+                    if label == "person":
+                        persons.append((x1, y1, x2, y2))
+                        vehicles.append((x1, y1, x2, y2))
+                    elif label == "motorcycle":
+                        bikes.append((x1, y1, x2, y2))
+                        vehicles.append((x1, y1, x2, y2))
+                    elif label in {"car", "truck", "bus", "bicycle"}:
+                        vehicles.append((x1, y1, x2, y2))
+                    elif label == "helmet":
+                        helmets.append((x1, y1, x2, y2))
+
+                # Detect violations
+                violations = []
+                violations.extend(detect_triple_riding(persons, bikes))
+
+                if self.helmet_model and self.helmet_model != self.model:
+                    violations.extend(self._detect_no_helmet(frame, persons))
+                else:
+                    violations.extend(detect_no_helmet(persons, bikes, helmets))
+
+                violations.extend(
+                    detect_wrong_side(
+                        vehicles,
+                        frame.shape[1],
+                        direction=getattr(settings, "TRAFFIC_DIRECTION", "right"),
+                    )
+                )
 
                 for violation in violations:
                     # Save frame if enabled
@@ -132,10 +179,12 @@ class VideoProcessor:
                         frame_path = os.path.join(settings.OUTPUT_DIR, frame_name)
                         cv2.imwrite(frame_path, frame)
 
+                    violation_type = violation.get("type", "Unknown")
+
                     # Create violation record
                     db_violation = Violation(
-                        violation_type="Triple Riding",
-                        plate="",  # Would need OCR for real plate
+                        violation_type=violation_type,
+                        plate="",
                         confidence=85.0,
                         detected_at=datetime.utcnow(),
                         location=camera.location,
@@ -166,7 +215,7 @@ class VideoProcessor:
 
                     violations_count += 1
                     logger.info(
-                        f"Violation detected at frame {frame_count}: Triple Riding"
+                        f"Violation detected at frame {frame_count}: {violation_type}"
                     )
 
             cap.release()
@@ -191,6 +240,46 @@ class VideoProcessor:
                 "success": False,
                 "error": str(e),
             }
+
+    def _detect_no_helmet(self, frame, persons):
+        """Detect no-helmet violations using the helmet model."""
+        violations = []
+
+        # If helmet model is the same as main model, assume helmet is detected by main model output.
+        if not self.helmet_model or self.helmet_model == self.model:
+            return violations
+
+        try:
+            for person_box in persons:
+                x1, y1, x2, y2 = person_box
+
+                # Crop upper body region from person box
+                person_crop = frame[y1:y2, x1:x2]
+                if person_crop.size == 0:
+                    continue
+
+                # Run helmet model on cropped region
+                result = self.helmet_model(person_crop, conf=0.3, verbose=False)
+                helmet_found = False
+
+                if result and len(result) > 0:
+                    for box in result[0].boxes:
+                        cls = int(box.cls[0])
+                        label = self.helmet_model.names.get(cls, "unknown").lower()
+                        if label in ("helmet", "with_helmet", "hardhat"):
+                            helmet_found = True
+                            break
+
+                if not helmet_found:
+                    violations.append({
+                        "person_box": person_box,
+                        "type": "No Helmet",
+                    })
+
+        except Exception as e:
+            logger.warning(f"Helmet detection failed: {e}")
+
+        return violations
 
     def process_video_batch(self, videos_dir: str) -> list:
         """Process all videos in a directory."""

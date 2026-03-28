@@ -1,4 +1,4 @@
-# TrafficVision Backend Implementation Guide
+# TrafficGenie Backend Implementation Guide
 
 > **Complete guide for setting up, testing, and deploying the upgraded backend**
 
@@ -128,7 +128,7 @@ python main.py
 ENV=development
 DEBUG=True
 DEMO_MODE=True              # Skip Firebase auth
-DATABASE_URL=sqlite:///./trafficvision.db
+DATABASE_URL=sqlite:///./trafficgenie.db
 YOLO_MODEL_PATH=models/yolov8n.pt
 ```
 
@@ -139,7 +139,7 @@ ENV=production
 DEBUG=False
 DEMO_MODE=False
 DATABASE_URL=postgresql://user:pass@host:5432/db
-ALLOWED_ORIGINS=https://trafficvision.com,https://app.trafficvision.com
+ALLOWED_ORIGINS=https://trafficgenie.com,https://app.trafficgenie.com
 
 # Firebase
 FIREBASE_PROJECT_ID=your-project-id
@@ -188,7 +188,7 @@ GET /api/health
 # Version info
 GET /api/version
 → {
-    "app_name": "TrafficVision",
+    "app_name": "TrafficGenie",
     "version": "1.2.0",
     "environment": "development"
   }
@@ -520,18 +520,18 @@ CMD ["python", "main.py"]
 
 **Build & Run**
 ```bash
-docker build -t trafficvision-backend .
+docker build -t trafficgenie-backend .
 docker run -p 8000:8000 \
   -e DATABASE_URL="postgresql://..." \
   -e FIREBASE_PROJECT_ID="..." \
-  trafficvision-backend
+  trafficgenie-backend
 ```
 
 ### Google Cloud Run
 
 ```bash
 # Deploy to Cloud Run
-gcloud run deploy trafficvision-backend \
+gcloud run deploy trafficgenie-backend \
   --source . \
   --platform managed \
   --region us-central1 \
@@ -589,13 +589,13 @@ Error: Could not connect to database
 # Ensure data directory exists
 mkdir -p backend
 # Delete corrupted database
-rm -f trafficvision.db
+rm -f trafficgenie.db
 ```
 
 **Solution (PostgreSQL):**
 ```bash
 # Check connection string
-psql postgresql://user:pass@localhost:5432/trafficvision
+psql postgresql://user:pass@localhost:5432/trafficgenie
 
 # Or use proxy
 cloud_sql_proxy -instances=project:region:instance=127.0.0.1:5432

@@ -43,8 +43,6 @@ const WEEK = [
 ];
 
 const LAT_MIN=19.965, LAT_MAX=20.030, LNG_MIN=73.738, LNG_MAX=73.820;
-const toX = lng => ((lng-LNG_MIN)/(LNG_MAX-LNG_MIN))*680+20;
-const toY = lat => (1-(lat-LAT_MIN)/(LAT_MAX-LAT_MIN))*360+20;
 
 function hmColor(v) {
   const r = Math.min(v/HMAXVAL, 1);
@@ -168,6 +166,8 @@ function GoogleHotspotMap({ apiKey, hotspots, selected, onSelect, riskFilter }) 
 
 function SvgNashikMap({ hotspots, selected, onSelect, riskFilter }) {
   const maxV = Math.max(...hotspots.map(h=>h.violations));
+  const safeMaxV = Number.isFinite(maxV) && maxV > 0 ? maxV : 1;
+
   return (
     <div style={{background:"#0a1628",position:"relative"}}>
       <MapLegendOverlay googleMode={false} />

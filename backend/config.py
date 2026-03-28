@@ -1,9 +1,9 @@
 """
-Configuration management with validation for TrafficVision backend.
+Configuration management with validation for TrafficGenie backend.
 Supports dev, staging, and production environments.
 """
 import os
-from typing import Literal
+from typing import Literal, Union
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings
@@ -14,7 +14,7 @@ class Settings(BaseSettings):
 
     # App
     ENV: Literal["development", "staging", "production"] = "development"
-    APP_NAME: str = "TrafficVision"
+    APP_NAME: str = "TrafficGenie"
     APP_VERSION: str = "1.2.0"
     DEBUG: bool = Field(default=False)
 
@@ -22,10 +22,10 @@ class Settings(BaseSettings):
     HOST: str = "0.0.0.0"
     PORT: int = 8000
     API_PREFIX: str = "/api"
-    ALLOWED_ORIGINS: str = "*"  # CSV list or "*"
+    ALLOWED_ORIGINS: Union[str, list] = "*"  # CSV list or "*"
 
     # Database
-    DATABASE_URL: str = "sqlite:///./trafficvision.db"
+    DATABASE_URL: str = "sqlite:///./trafficgenie.db"
     DB_ECHO: bool = False  # SQL query logging
     DB_POOL_SIZE: int = 20
     DB_MAX_OVERFLOW: int = 40
@@ -67,10 +67,14 @@ class Settings(BaseSettings):
     ENABLE_REAL_TIME_UPDATES: bool = True
     ENABLE_GEMINI_INSIGHTS: bool = True
 
+    # Traffic rules (left/right side)
+    TRAFFIC_DIRECTION: Literal["left", "right"] = "right"
+
     class Config:
         """Pydantic config."""
         env_file = ".env"
         case_sensitive = True
+        extra = "ignore"  # Ignore extra fields from .env
 
     @field_validator("ALLOWED_ORIGINS", mode="before")
     @classmethod
