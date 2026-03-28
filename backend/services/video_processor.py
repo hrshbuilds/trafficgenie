@@ -6,6 +6,7 @@ import logging
 import os
 from datetime import datetime
 from pathlib import Path
+from typing import Dict, Tuple
 
 try:
     import cv2
@@ -74,19 +75,26 @@ class VideoProcessor:
             logger.error(f"Video not found: {video_path}")
             return {"success": False, "error": "Video not found"}
 
+        db = None
+        cap = None
         try:
             db = SessionLocal()
             cap = cv2.VideoCapture(video_path)
 
             frame_count = 0
+            processed_frames = 0
             violations_count = 0
             fps = cap.get(cv2.CAP_PROP_FPS)
-            frame_skip = max(1, int(fps // 5))  # Process 5 frames per second
+            frame_skip = self._calculate_frame_skip(fps)  # ~5 fps processing target
+            min_gap_frames = max(frame_skip * 3, 10)
+            recent_events: Dict[Tuple[str, int, int], int] = {}
 
             # Get or create camera
             camera = db.query(Camera).filter(Camera.code == camera_code).first()
             if not camera:
                 logger.error(f"Camera not found: {camera_code}")
+                cap.release()
+                db.close()
                 return {"success": False, "error": "Camera not found"}
 
             logger.info(f"Processing video: {video_path} (Camera: {camera_code})")
@@ -101,6 +109,7 @@ class VideoProcessor:
                 # Skip frames for efficiency
                 if frame_count % frame_skip != 0:
                     continue
+                processed_frames += 1
 
                 # Run YOLO detection
                 results = self.model(frame, verbose=False)
@@ -114,19 +123,29 @@ class VideoProcessor:
                     cls = int(box.cls[0])
                     conf = float(box.conf[0])
                     x1, y1, x2, y2 = map(int, box.xyxy[0])
-                    label = self.model.names[cls]
+                    label = self._resolve_label(self.model.names, cls).lower()
 
                     if label == "person" and conf > 0.5:
                         persons.append((x1, y1, x2, y2))
-                    elif label == "motorcycle" and conf > 0.5:
+                    elif label in ("motorcycle", "motorbike", "bike") and conf > 0.5:
                         bikes.append((x1, y1, x2, y2))
 
                 # Detect triple riding
                 violations = detect_triple_riding(persons, bikes)
 
                 for violation in violations:
+                    signature = self._event_signature("Triple Riding", violation["bike_box"])
+                    if not self._should_emit_event(
+                        signature=signature,
+                        frame_number=frame_count,
+                        recent_events=recent_events,
+                        min_gap_frames=min_gap_frames,
+                    ):
+                        continue
+
                     # Save frame if enabled
                     frame_path = None
+                    frame_name = None
                     if save_frames:
                         frame_name = f"video_frame_{camera_code}_{frame_count}.jpg"
                         frame_path = os.path.join(settings.OUTPUT_DIR, frame_name)
@@ -148,7 +167,9 @@ class VideoProcessor:
                     db.flush()
 
                     # Add evidence
-                    image_url = f"http://localhost:8000/images/{frame_name}" if frame_path else ""
+                    image_url = (
+                        f"http://localhost:8000/images/{frame_name}" if frame_path else ""
+                    )
                     evidence = Evidence(
                         violation_id=db_violation.id,
                         image_url=image_url,
@@ -178,15 +199,18 @@ class VideoProcessor:
             )
             return {
                 "success": True,
-                "frames_processed": frame_count,
+                "frames_processed": processed_frames,
                 "violations_detected": violations_count,
                 "camera_code": camera_code,
             }
 
         except Exception as e:
             logger.error(f"Video processing error: {e}")
-            db.rollback()
-            db.close()
+            if cap is not None:
+                cap.release()
+            if db is not None:
+                db.rollback()
+                db.close()
             return {
                 "success": False,
                 "error": str(e),
@@ -202,6 +226,45 @@ class VideoProcessor:
             results.append(result)
 
         return results
+
+    @staticmethod
+    def _calculate_frame_skip(fps: float, target_fps: int = 5) -> int:
+        """Calculate frame skip count from source FPS safely."""
+        if not fps or fps <= 0:
+            return 5
+        return max(1, int(round(fps / target_fps)))
+
+    @staticmethod
+    def _resolve_label(names, class_id: int) -> str:
+        """Resolve YOLO class label for dict/list/tuple `names` payloads."""
+        if isinstance(names, dict):
+            return str(names.get(class_id, "unknown"))
+        if isinstance(names, (list, tuple)) and 0 <= class_id < len(names):
+            return str(names[class_id])
+        return "unknown"
+
+    @staticmethod
+    def _event_signature(violation_type: str, bike_box: Tuple[int, int, int, int]) -> Tuple[str, int, int]:
+        """Build spatial signature to deduplicate repeated frame hits for same event."""
+        x1, y1, x2, y2 = map(int, bike_box[:4])
+        cx = (x1 + x2) // 2
+        cy = (y1 + y2) // 2
+        # Quantize to reduce detector jitter across nearby frames.
+        return violation_type, cx // 40, cy // 40
+
+    @staticmethod
+    def _should_emit_event(
+        signature: Tuple[str, int, int],
+        frame_number: int,
+        recent_events: Dict[Tuple[str, int, int], int],
+        min_gap_frames: int,
+    ) -> bool:
+        """Return True when event should be stored as a new violation."""
+        last_frame = recent_events.get(signature)
+        if last_frame is not None and (frame_number - last_frame) < min_gap_frames:
+            return False
+        recent_events[signature] = frame_number
+        return True
 
 
 # Global processor instance
