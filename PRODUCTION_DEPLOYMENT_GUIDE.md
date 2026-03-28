@@ -1,6 +1,6 @@
 # Production Deployment Guide
 
-> Complete guide for deploying TrafficVision backend to production environments
+> Complete guide for deploying TrafficGenie backend to production environments
 
 ---
 
@@ -65,25 +65,25 @@
 
 ```bash
 # Create Cloud SQL instance
-gcloud sql instances create trafficvision-prod \
+gcloud sql instances create trafficgenie-prod \
   --database-version=POSTGRES_15 \
   --tier=db-f1-micro \
   --region=us-central1 \
   --availability-type=regional
 
 # Create database
-gcloud sql databases create trafficvision \
-  --instance=trafficvision-prod
+gcloud sql databases create trafficgenie \
+  --instance=trafficgenie-prod
 
 # Create user
-gcloud sql users create trafficvision \
-  --instance=trafficvision-prod \
+gcloud sql users create trafficgenie \
+  --instance=trafficgenie-prod \
   --password
 ```
 
 **Connection string format:**
 ```
-postgresql://trafficvision:PASSWORD@/trafficvision?host=/cloudsql/PROJECT:us-central1:trafficvision-prod
+postgresql://trafficgenie:PASSWORD@/trafficgenie?host=/cloudsql/PROJECT:us-central1:trafficgenie-prod
 ```
 
 ### 2. Setup Firebase Project
@@ -93,7 +93,7 @@ postgresql://trafficvision:PASSWORD@/trafficvision?host=/cloudsql/PROJECT:us-cen
 gcloud auth login
 
 # Create Firebase project (if not exists)
-firebase projects:create trafficvision-prod
+firebase projects:create trafficgenie-prod
 
 # Enable required services
 gcloud services enable firestore.googleapis.com
@@ -101,8 +101,8 @@ gcloud services enable storage-api.googleapis.com
 gcloud services enable cloudkms.googleapis.com
 
 # Create service account
-gcloud iam service-accounts create trafficvision-backend \
-  --display-name="TrafficVision Backend"
+gcloud iam service-accounts create trafficgenie-backend \
+  --display-name="TrafficGenie Backend"
 
 # Grant necessary permissions
 gcloud projects add-iam-policy-binding $PROJECT_ID \
@@ -115,7 +115,7 @@ gcloud projects add-iam-policy-binding $PROJECT_ID \
 
 # Generate key
 gcloud iam service-accounts keys create firebase-key.json \
-  --iam-account=trafficvision-backend@$PROJECT_ID.iam.gserviceaccount.com
+  --iam-account=trafficgenie-backend@$PROJECT_ID.iam.gserviceaccount.com
 ```
 
 ### 3. Setup Secrets Manager
@@ -182,14 +182,14 @@ alembic downgrade -1
 
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/trafficvision.git
-cd trafficvision/backend
+git clone https://github.com/yourusername/trafficgenie.git
+cd trafficgenie/backend
 
 # Set project
 gcloud config set project YOUR_PROJECT_ID
 
 # Deploy directly from repository
-gcloud run deploy trafficvision-backend \
+gcloud run deploy trafficgenie-backend \
   --source . \
   --region us-central1 \
   --platform managed \
@@ -213,14 +213,14 @@ gcloud run deploy trafficvision-backend \
 export PROJECT_ID=$(gcloud config get-value project)
 
 # Build image
-docker build -t gcr.io/$PROJECT_ID/trafficvision-backend .
+docker build -t gcr.io/$PROJECT_ID/trafficgenie-backend .
 
 # Push to Container Registry
-docker push gcr.io/$PROJECT_ID/trafficvision-backend
+docker push gcr.io/$PROJECT_ID/trafficgenie-backend
 
 # Deploy
-gcloud run deploy trafficvision-backend \
-  --image gcr.io/$PROJECT_ID/trafficvision-backend \
+gcloud run deploy trafficgenie-backend \
+  --image gcr.io/$PROJECT_ID/trafficgenie-backend \
   --region us-central1 \
   --platform managed \
   --memory 1Gi \

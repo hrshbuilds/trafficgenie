@@ -1,5 +1,5 @@
 """
-TrafficVision FastAPI Backend - Production Ready
+TrafficGenie FastAPI Backend - Production Ready
 Integrated with Firebase, Gemini, and YOLO detection.
 """
 import logging
@@ -109,7 +109,7 @@ app.add_middleware(
 
 
 @app.exception_handler(TrafficVisionException)
-async def traffic_vision_exception_handler(_, exc: TrafficVisionException):
+async def traffic_genie_exception_handler(_, exc: TrafficVisionException):
     """Handle custom application exceptions."""
     return JSONResponse(
         status_code=exc.status_code,
@@ -155,7 +155,7 @@ async def validation_exception_handler(_, exc: RequestValidationError):
 @app.on_event("startup")
 def on_startup():
     """Initialize app on startup."""
-    app_logger.info("=== Starting TrafficVision Backend ===")
+    app_logger.info("=== Starting TrafficGenie Backend ===")
     app_logger.info(f"Environment: {settings.ENV}")
     app_logger.info(f"Debug: {settings.DEBUG}")
 
@@ -211,7 +211,7 @@ def verify_firebase_token(
     if settings.DEMO_MODE:
         return {
             "uid": "demo-user",
-            "email": "demo@trafficvision.local",
+            "email": "demo@trafficgenie.local",
             "demo": True,
         }
 

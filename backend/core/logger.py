@@ -1,5 +1,5 @@
 """
-Structured logging configuration for TrafficVision backend.
+Structured logging configuration for TrafficGenie backend.
 Supports JSON and text formats for cloud-native deployments.
 """
 import json

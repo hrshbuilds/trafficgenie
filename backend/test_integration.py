@@ -168,7 +168,7 @@ def main():
     """Run all tests."""
     print("\n")
     print("╔════════════════════════════════════════════════════════════════════╗")
-    print("║       TrafficVision Backend - Integration Test Suite              ║")
+    print("║       TrafficGenie Backend - Integration Test Suite              ║")
     print("║                                                                    ║")
     print("║  Testing: Seeding, Live Feed, Traffic Genie, Video Processing    ║")
     print("╚════════════════════════════════════════════════════════════════════╝")

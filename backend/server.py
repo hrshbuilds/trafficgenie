@@ -68,7 +68,7 @@ async def verify_firebase_token(
     authorization: HTTPAuthorizationCredentials | None = Security(security, auto_error=False),
 ):
     if is_demo_mode():
-        return {"uid": "demo-reviewer", "email": "demo@trafficvision.local", "demo": True}
+        return {"uid": "demo-reviewer", "email": "demo@trafficgenie.local", "demo": True}
 
     if not FIREBASE_READY:
         raise HTTPException(status_code=503, detail="Firebase authentication is not configured")
@@ -101,7 +101,7 @@ def require_role(decoded_token: dict, db: Session, allowed_roles: set[str]):
     return role_obj
 
 
-app = FastAPI(title="TrafficVision FastAPI Backend", version="1.1.0")
+app = FastAPI(title="TrafficGenie FastAPI Backend", version="1.1.0")
 
 
 @app.exception_handler(HTTPException)

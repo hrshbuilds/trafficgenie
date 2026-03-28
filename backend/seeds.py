@@ -1,5 +1,5 @@
 """
-Seed data generation for TrafficVision demo database.
+Seed data generation for TrafficGenie demo database.
 Generates realistic traffic violations with varied types, locations, and times.
 """
 from datetime import datetime, timedelta
@@ -121,9 +121,11 @@ def create_violation(
 
     # Add evidence (mock image URL)
     image_name = f"violation_{violation.id}.jpg"
-    image_url = f"http://localhost:8000/images/{image_name}"
-    if settings.ENV != "development":
-        image_url = f"https://storage.googleapis.com/trafficvision-prod/{image_name}"
+    if settings.ENV == "development":
+        image_url = f"http://localhost:8000/images/{image_name}"
+    else:
+        # Use Firebase Storage for production
+        image_url = f"https://storage.googleapis.com/trafficgenie-a48a8.appspot.com/{image_name}"
 
     evidence = Evidence(
         violation_id=violation.id,
