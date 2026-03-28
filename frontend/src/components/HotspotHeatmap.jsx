@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
 
 const FONT_URL = "https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,400&family=DM+Sans:wght@300;400;500;600&family=Bebas+Neue&display=swap";
 
@@ -53,24 +54,123 @@ function hmColor(v) {
   return `rgba(21,101,192,${Math.max(0.05,r*0.35).toFixed(2)})`;
 }
 
-function NashikMap({ hotspots, selected, onSelect, riskFilter }) {
+const MAP_HEIGHT = 460;
+const GOOGLE_MAP_CONTAINER = { width: "100%", height: MAP_HEIGHT };
+const NASHIK_MAP_CENTER = { lat: 19.9975, lng: 73.7898 };
+
+function MapLegendOverlay({ googleMode }) {
+  return (
+    <>
+      <div style={{ position: "absolute", top: 10, right: 10, zIndex: 10, background: "rgba(10,22,40,0.92)", border: "1px solid rgba(255,255,255,.1)", padding: "10px 14px", pointerEvents: "none" }}>
+        <div style={{ fontSize: ".56rem", fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: "rgba(255,255,255,.3)", marginBottom: 8 }}>Risk Level</div>
+        {Object.entries(RISK).map(([k, v]) => (
+          <div key={k} style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 5 }}>
+            <div style={{ width: 9, height: 9, borderRadius: "50%", background: v.color, boxShadow: `0 0 6px ${v.color}88` }} />
+            <span style={{ fontSize: ".62rem", color: "rgba(255,255,255,.55)", textTransform: "capitalize" }}>{v.label}</span>
+          </div>
+        ))}
+        <div style={{ borderTop: "1px solid rgba(255,255,255,.08)", marginTop: 8, paddingTop: 8, fontSize: ".56rem", color: "rgba(255,255,255,.25)" }}>
+          {googleMode ? "Marker size = violations" : "Bubble = violation count"}
+        </div>
+      </div>
+      <div style={{ position: "absolute", top: 10, left: 12, zIndex: 10, pointerEvents: "none" }}>
+        <div style={{ fontFamily: "'Bebas Neue',cursive", fontSize: ".95rem", letterSpacing: 3, color: "rgba(255,255,255,.1)" }}>NASHIK ZONE</div>
+        <div style={{ fontSize: ".55rem", color: "rgba(255,255,255,.15)", letterSpacing: 1.5 }}>19.97°N · 73.78°E</div>
+      </div>
+    </>
+  );
+}
+
+function GoogleHotspotMap({ apiKey, hotspots, selected, onSelect, riskFilter }) {
+  const { isLoaded, loadError } = useJsApiLoader({
+    id: "trafficgenie-google-maps",
+    googleMapsApiKey: apiKey,
+  });
+
+  const maxV = Math.max(...hotspots.map((h) => h.violations), 1);
+
+  const onMapLoad = useCallback(
+    (map) => {
+      const g = window.google?.maps;
+      if (!g) return;
+      const bounds = new g.LatLngBounds();
+      hotspots.forEach((h) => bounds.extend({ lat: h.lat, lng: h.lng }));
+      map.fitBounds(bounds, 48);
+    },
+    [hotspots]
+  );
+
+  if (loadError) {
+    return (
+      <div style={{ background: "#0a1628", position: "relative", minHeight: MAP_HEIGHT }}>
+        <MapLegendOverlay googleMode />
+        <div style={{ height: MAP_HEIGHT, display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,.45)", fontSize: ".75rem", padding: "0 24px", textAlign: "center" }}>
+          Map failed to load. Enable the Maps JavaScript API for this key and check billing.
+        </div>
+      </div>
+    );
+  }
+
+  if (!isLoaded) {
+    return (
+      <div style={{ background: "#0a1628", position: "relative", minHeight: MAP_HEIGHT }}>
+        <MapLegendOverlay googleMode />
+        <div style={{ height: MAP_HEIGHT, display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,.35)", fontSize: ".75rem" }}>Loading map…</div>
+      </div>
+    );
+  }
+
+  const gmaps = window.google.maps;
+
+  return (
+    <div style={{ background: "#0a1628", position: "relative" }}>
+      <MapLegendOverlay googleMode />
+      <GoogleMap
+        mapContainerStyle={GOOGLE_MAP_CONTAINER}
+        center={NASHIK_MAP_CENTER}
+        zoom={12}
+        onLoad={onMapLoad}
+        options={{
+          mapTypeControl: false,
+          streetViewControl: false,
+          fullscreenControl: true,
+          gestureHandling: "greedy",
+        }}
+      >
+        {hotspots.map((h) => {
+          const cfg = RISK[h.risk];
+          const isActive = selected?.id === h.id;
+          const dimmed = riskFilter !== "all" && h.risk !== riskFilter;
+          const baseScale = Math.max(7, 8 + (h.violations / maxV) * 20) * (isActive ? 1.12 : 1);
+          return (
+            <Marker
+              key={h.id}
+              position={{ lat: h.lat, lng: h.lng }}
+              onClick={() => onSelect(h)}
+              zIndex={isActive ? 900 : dimmed ? 1 : 400}
+              opacity={dimmed ? 0.22 : 1}
+              title={`${h.name} — ${h.violations} violations`}
+              icon={{
+                path: gmaps.SymbolPath.CIRCLE,
+                scale: baseScale,
+                fillColor: cfg.color,
+                fillOpacity: dimmed ? 0.4 : 0.92,
+                strokeColor: isActive ? "#ffffff" : cfg.color,
+                strokeWeight: isActive ? 2.5 : 1,
+              }}
+            />
+          );
+        })}
+      </GoogleMap>
+    </div>
+  );
+}
+
+function SvgNashikMap({ hotspots, selected, onSelect, riskFilter }) {
   const maxV = Math.max(...hotspots.map(h=>h.violations));
   return (
     <div style={{background:"#0a1628",position:"relative"}}>
-      <div style={{position:"absolute",top:10,right:10,zIndex:10,background:"rgba(10,22,40,0.92)",border:"1px solid rgba(255,255,255,.1)",padding:"10px 14px"}}>
-        <div style={{fontSize:".56rem",fontWeight:700,letterSpacing:2,textTransform:"uppercase",color:"rgba(255,255,255,.3)",marginBottom:8}}>Risk Level</div>
-        {Object.entries(RISK).map(([k,v])=>(
-          <div key={k} style={{display:"flex",alignItems:"center",gap:7,marginBottom:5}}>
-            <div style={{width:9,height:9,borderRadius:"50%",background:v.color,boxShadow:`0 0 6px ${v.color}88`}}/>
-            <span style={{fontSize:".62rem",color:"rgba(255,255,255,.55)",textTransform:"capitalize"}}>{v.label}</span>
-          </div>
-        ))}
-        <div style={{borderTop:"1px solid rgba(255,255,255,.08)",marginTop:8,paddingTop:8,fontSize:".56rem",color:"rgba(255,255,255,.25)"}}>Bubble = violation count</div>
-      </div>
-      <div style={{position:"absolute",top:10,left:12,zIndex:10}}>
-        <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:".95rem",letterSpacing:3,color:"rgba(255,255,255,.1)"}}>NASHIK ZONE</div>
-        <div style={{fontSize:".55rem",color:"rgba(255,255,255,.15)",letterSpacing:1.5}}>19.97°N · 73.78°E</div>
-      </div>
+      <MapLegendOverlay googleMode={false} />
       <svg viewBox="0 0 720 400" style={{width:"100%",height:460,display:"block"}}>
         {[...Array(12)].map((_,i)=><line key={"gx"+i} x1={i*64} y1={0} x2={i*64} y2={400} stroke="rgba(255,255,255,.025)" strokeWidth={1}/>)}
         {[...Array(7)].map((_,i) =><line key={"gy"+i} x1={0} y1={i*58} x2={720} y2={i*58} stroke="rgba(255,255,255,.025)" strokeWidth={1}/>)}
@@ -115,6 +215,12 @@ function NashikMap({ hotspots, selected, onSelect, riskFilter }) {
       </svg>
     </div>
   );
+}
+
+function NashikMap(props) {
+  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+  if (apiKey) return <GoogleHotspotMap {...props} apiKey={apiKey} />;
+  return <SvgNashikMap {...props} />;
 }
 
 function HeatmapGrid() {
