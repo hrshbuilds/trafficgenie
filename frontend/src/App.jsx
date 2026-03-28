@@ -4,6 +4,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
 import './index.css';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { TrafficContextProvider } from './context/TrafficContextProvider';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import LoadingSkeleton from './components/common/LoadingSkeleton';
 
@@ -16,6 +17,7 @@ import ToolsSlider from './components/ToolsSlider';
 import CityFeed from './components/CityFeed';
 import Footer from './components/Footer';
 import Toast from './components/Toast';
+import ChatBot from './components/ChatBot';
 
 import AdminDashboard from './pages/AdminDashboard';
 
@@ -198,7 +200,10 @@ export default function App() {
   return (
     <ErrorBoundary>
       <AuthProvider>
-        <AppInner />
+        <TrafficContextProvider>
+          <AppInner />
+          <ChatBot />
+        </TrafficContextProvider>
       </AuthProvider>
     </ErrorBoundary>
   );

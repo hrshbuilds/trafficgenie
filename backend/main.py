@@ -870,7 +870,125 @@ def process_video(
 
 
 # ============================================================================
-# BACKWARD COMPATIBILITY ALIASES
+# ROUTES - CONTEXT-AWARE QUERIES (TRAFFIC GENIE AI)
+# ============================================================================
+
+
+@app.post("/api/ask", tags=["chat"])
+def context_aware_query(
+    request_data: dict,
+    db: Session = Depends(get_db),
+):
+    """
+    Context-Aware Chat Query Endpoint
+    
+    Analyzes user questions based on:
+    - Current page/view in the app
+    - Live traffic data and statistics
+    - Recent violations and hotspots
+    - Database context
+    
+    Returns AI-powered insights with suggestions.
+    """
+    try:
+        from services.context_query_service import query_service
+        
+        user_query = request_data.get("query") or request_data.get("prompt", "")
+        current_page = request_data.get("currentPage", "home")
+        page_data = request_data.get("pageData", {})
+        
+        if not user_query:
+            raise HTTPException(status_code=400, detail="Query is required")
+
+        # Get live dataset
+        violations_summary = query_service.get_violations_summary(db, hours=24)
+        challan_summary = query_service.get_challan_summary(db)
+        hotspots = query_service.get_hotspots(db, limit=5)
+        critical = query_service.get_critical_violations(db, limit=10)
+        
+        live_stats = {
+            "totalViolations": violations_summary.get('total', 0),
+            "byType": violations_summary.get('by_type', {}),
+            "pendingChallans": challan_summary.get('pending', 0),
+            "reviewedChallans": challan_summary.get('reviewed', 0),
+            "approvedChallans": challan_summary.get('approved', 0),
+            "activeCameras": len(query_service.get_active_cameras(db)),
+            "hotspots": hotspots,
+        }
+        
+        # Get recent violations for context
+        recent_violations = (
+            db.query(Violation)
+            .order_by(Violation.detected_at.desc())
+            .limit(5)
+            .all()
+        )
+        
+        recent_vios_data = [
+            {
+                'type': v.violation_type,
+                'location': v.location,
+                'confidence': v.confidence,
+                'plate': v.plate,
+                'detected_at': v.detected_at.isoformat() if v.detected_at else None,
+            }
+            for v in recent_violations
+        ]
+        
+        # Generate context-aware response using Gemini
+        if gemini_service.is_available():
+            result = gemini_service.generate_context_aware_response(
+                user_query=user_query,
+                current_page=current_page,
+                page_data=page_data,
+                live_stats=live_stats,
+                recent_violations=recent_vios_data,
+                hotspots=hotspots,
+            )
+        else:
+            # Fallback response
+            result = {
+                "response": f"Query received: {user_query[:100]}. System is currently offline.",
+                "context_used": False,
+                "suggestions": ["Check system status", "Review violations manually"],
+                "context_page": current_page,
+            }
+        
+        # Add live stats to response
+        result["live_stats"] = live_stats
+        result["critical_violations_count"] = len(critical)
+        
+        return result
+
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        app_logger.error(f"Context-aware query error: {e}")
+        raise HTTPException(status_code=500, detail=f"Query failed: {str(e)}")
+
+
+@app.get("/api/context/summary", tags=["chat"])
+def get_context_summary(db: Session = Depends(get_db)):
+    """Get live context summary - used by frontend for context tracking."""
+    try:
+        from services.context_query_service import query_service
+        
+        violations_summary = query_service.get_violations_summary(db, hours=24)
+        challan_summary = query_service.get_challan_summary(db)
+        hotspots = query_service.get_hotspots(db, limit=5)
+        
+        return {
+            "violations": violations_summary,
+            "challans": challan_summary,
+            "hotspots": hotspots,
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+    except Exception as e:
+        app_logger.error(f"Context summary error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get context: {str(e)}")
+
+
+# ============================================================================
 # ============================================================================
 
 

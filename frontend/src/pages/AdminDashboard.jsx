@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useTrafficContext } from '../context/TrafficContextProvider';
 import { useRealtimeViolations, useRealtimeNewViolations } from '../hooks/useViolations';
 import { useAgentLogs } from '../hooks/useAgentLogs';
 import { useRealtimeStats } from '../hooks/useRealtimeStats';
@@ -81,6 +82,18 @@ export default function AdminDashboard({ onOpenModal }) {
   const [sessionCount, setSessionCount] = useState(23);
   const [activeTab, setActiveTab] = useState('live');
   const [showSettings, setShowSettings] = useState(false);
+
+  // Get TrafficContext for AI awareness
+  const { updateCurrentPage, liveStats } = useTrafficContext();
+
+  // Update context when page changes
+  useEffect(() => {
+    updateCurrentPage(activeTab, {
+      selectedWard: filters.ward || 'All',
+      selectedZone: activeZone,
+      activeCamera: activeCam,
+    });
+  }, [activeTab, filters.ward, activeZone, activeCam, updateCurrentPage]);
 
   // Clock & Traffic Light Effect
   useEffect(() => {
