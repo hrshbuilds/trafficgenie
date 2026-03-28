@@ -1,3 +1,6 @@
 
 # Local backup archives
 TrafficVision-workspace-with-uncommitted-*.tar.gz
+
+# Generated upstream patch files
+upstream-patches/
