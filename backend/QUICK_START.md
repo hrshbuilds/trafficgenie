@@ -16,7 +16,7 @@ Your TrafficGenie backend now has:
 ### Step 1: Start Backend Server
 
 ```bash
-cd d:\genieharsh\trafficgenie\backend
+cd backend
 python main.py
 ```
 
@@ -30,7 +30,7 @@ python main.py
 
 ```bash
 # In a new terminal:
-cd d:\genieharsh\trafficgenie\backend
+cd backend
 
 # Quick test (requires Python requests package)
 pip install requests
