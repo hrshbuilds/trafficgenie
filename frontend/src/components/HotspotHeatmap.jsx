@@ -91,7 +91,10 @@ function NashikMap({ hotspots, selected, onSelect, riskFilter }) {
       </div>
 
       {hotspots.map(h=>{
-        const r=10+(h.violations/maxV)*28;
+        const safeMaxV = Number.isFinite(maxV) && maxV > 0 ? maxV : 1;
+        const scale = h.violations / safeMaxV;
+        const clampedScale = Math.max(0, Math.min(scale, 1));
+        const r = 10 + clampedScale * 28;
         const cfg=RISK[h.risk];
         const isActive=selected?.id===h.id;
         const dimmed=riskFilter!=="all" && h.risk!==riskFilter;
