@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
 
 const FONT_URL = "https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,400&family=DM+Sans:wght@300;400;500;600&family=Bebas+Neue&display=swap";
 
@@ -51,91 +52,175 @@ function hmColor(v) {
   return `rgba(21,101,192,${Math.max(0.05,r*0.35).toFixed(2)})`;
 }
 
-function NashikMap({ hotspots, selected, onSelect, riskFilter }) {
-  const latSpan = LAT_MAX - LAT_MIN;
-  const lngSpan = LNG_MAX - LNG_MIN;
-  const project = (lat, lng) => ({
-    top: `${((LAT_MAX - lat) / latSpan) * 100}%`,
-    left: `${((lng - LNG_MIN) / lngSpan) * 100}%`,
+const MAP_HEIGHT = 460;
+const GOOGLE_MAP_CONTAINER = { width: "100%", height: MAP_HEIGHT };
+const NASHIK_MAP_CENTER = { lat: 19.9975, lng: 73.7898 };
+
+function MapLegendOverlay({ googleMode }) {
+  return (
+    <>
+      <div style={{ position: "absolute", top: 10, right: 10, zIndex: 10, background: "rgba(10,22,40,0.92)", border: "1px solid rgba(255,255,255,.1)", padding: "10px 14px", pointerEvents: "none" }}>
+        <div style={{ fontSize: ".56rem", fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: "rgba(255,255,255,.3)", marginBottom: 8 }}>Risk Level</div>
+        {Object.entries(RISK).map(([k, v]) => (
+          <div key={k} style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 5 }}>
+            <div style={{ width: 9, height: 9, borderRadius: "50%", background: v.color, boxShadow: `0 0 6px ${v.color}88` }} />
+            <span style={{ fontSize: ".62rem", color: "rgba(255,255,255,.55)", textTransform: "capitalize" }}>{v.label}</span>
+          </div>
+        ))}
+        <div style={{ borderTop: "1px solid rgba(255,255,255,.08)", marginTop: 8, paddingTop: 8, fontSize: ".56rem", color: "rgba(255,255,255,.25)" }}>
+          {googleMode ? "Marker size = violations" : "Bubble = violation count"}
+        </div>
+      </div>
+      <div style={{ position: "absolute", top: 10, left: 12, zIndex: 10, pointerEvents: "none" }}>
+        <div style={{ fontFamily: "'Bebas Neue',cursive", fontSize: ".95rem", letterSpacing: 3, color: "rgba(255,255,255,.1)" }}>NASHIK ZONE</div>
+        <div style={{ fontSize: ".55rem", color: "rgba(255,255,255,.15)", letterSpacing: 1.5 }}>19.97°N · 73.78°E</div>
+      </div>
+    </>
+  );
+}
+
+function GoogleHotspotMap({ apiKey, hotspots, selected, onSelect, riskFilter }) {
+  const { isLoaded, loadError } = useJsApiLoader({
+    id: "trafficgenie-google-maps",
+    googleMapsApiKey: apiKey,
   });
+
+  const maxV = Math.max(...hotspots.map((h) => h.violations), 1);
+
+  const onMapLoad = useCallback(
+    (map) => {
+      const g = window.google?.maps;
+      if (!g) return;
+      const bounds = new g.LatLngBounds();
+      hotspots.forEach((h) => bounds.extend({ lat: h.lat, lng: h.lng }));
+      map.fitBounds(bounds, 48);
+    },
+    [hotspots]
+  );
+
+  if (loadError) {
+    return (
+      <div style={{ background: "#0a1628", position: "relative", minHeight: MAP_HEIGHT }}>
+        <MapLegendOverlay googleMode />
+        <div style={{ height: MAP_HEIGHT, display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,.45)", fontSize: ".75rem", padding: "0 24px", textAlign: "center" }}>
+          Map failed to load. Enable the Maps JavaScript API for this key and check billing.
+        </div>
+      </div>
+    );
+  }
+
+  if (!isLoaded) {
+    return (
+      <div style={{ background: "#0a1628", position: "relative", minHeight: MAP_HEIGHT }}>
+        <MapLegendOverlay googleMode />
+        <div style={{ height: MAP_HEIGHT, display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,.35)", fontSize: ".75rem" }}>Loading map…</div>
+      </div>
+    );
+  }
+
+  const gmaps = window.google.maps;
+
+  return (
+    <div style={{ background: "#0a1628", position: "relative" }}>
+      <MapLegendOverlay googleMode />
+      <GoogleMap
+        mapContainerStyle={GOOGLE_MAP_CONTAINER}
+        center={NASHIK_MAP_CENTER}
+        zoom={12}
+        onLoad={onMapLoad}
+        options={{
+          mapTypeControl: false,
+          streetViewControl: false,
+          fullscreenControl: true,
+          gestureHandling: "greedy",
+        }}
+      >
+        {hotspots.map((h) => {
+          const cfg = RISK[h.risk];
+          const isActive = selected?.id === h.id;
+          const dimmed = riskFilter !== "all" && h.risk !== riskFilter;
+          const baseScale = Math.max(7, 8 + (h.violations / maxV) * 20) * (isActive ? 1.12 : 1);
+          return (
+            <Marker
+              key={h.id}
+              position={{ lat: h.lat, lng: h.lng }}
+              onClick={() => onSelect(h)}
+              zIndex={isActive ? 900 : dimmed ? 1 : 400}
+              opacity={dimmed ? 0.22 : 1}
+              title={`${h.name} — ${h.violations} violations`}
+              icon={{
+                path: gmaps.SymbolPath.CIRCLE,
+                scale: baseScale,
+                fillColor: cfg.color,
+                fillOpacity: dimmed ? 0.4 : 0.92,
+                strokeColor: isActive ? "#ffffff" : cfg.color,
+                strokeWeight: isActive ? 2.5 : 1,
+              }}
+            />
+          );
+        })}
+      </GoogleMap>
+    </div>
+  );
+}
+
+function SvgNashikMap({ hotspots, selected, onSelect, riskFilter }) {
   const maxV = Math.max(...hotspots.map(h=>h.violations));
   const safeMaxV = Number.isFinite(maxV) && maxV > 0 ? maxV : 1;
 
   return (
-    <div style={{background:"#0a1628",position:"relative",height:460,overflow:"hidden"}}>
-      <div style={{position:"absolute",inset:0,background:"radial-gradient(circle at 22% 18%, rgba(46,125,250,0.24), transparent 42%), radial-gradient(circle at 81% 72%, rgba(94, 58, 238, 0.16), transparent 46%), linear-gradient(180deg, #0a1628 0%, #0f1e35 100%)"}} />
-      <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{position:"absolute",inset:0,opacity:0.38}}>
-        {[12, 24, 35, 49, 63, 78, 90].map((x) => (
-          <line key={`v-${x}`} x1={x} y1="0" x2={x} y2="100" stroke="rgba(143,174,198,0.18)" strokeWidth="0.2" />
-        ))}
-        {[9, 18, 28, 40, 52, 67, 81, 92].map((y) => (
-          <line key={`h-${y}`} x1="0" y1={y} x2="100" y2={y} stroke="rgba(143,174,198,0.14)" strokeWidth="0.2" />
-        ))}
-        <polyline points="5,72 13,68 22,63 30,58 40,56 48,52 60,50 72,46 84,42 95,40" fill="none" stroke="rgba(23,94,181,0.35)" strokeWidth="1.6" />
-        <polyline points="10,25 17,31 27,35 34,43 43,49 55,58 66,63 77,70 90,74" fill="none" stroke="rgba(23,94,181,0.32)" strokeWidth="1.2" />
-        <polyline points="12,87 22,79 31,74 39,66 51,60 63,56 76,50 89,45" fill="none" stroke="rgba(21,101,192,0.44)" strokeWidth="0.8" />
+    <div style={{background:"#0a1628",position:"relative"}}>
+      <MapLegendOverlay googleMode={false} />
+      <svg viewBox="0 0 720 400" style={{width:"100%",height:MAP_HEIGHT,display:"block"}}>
+        {[...Array(12)].map((_,i)=><line key={"gx"+i} x1={i*64} y1={0} x2={i*64} y2={400} stroke="rgba(255,255,255,.025)" strokeWidth={1}/>)}
+        {[...Array(7)].map((_,i) =><line key={"gy"+i} x1={0} y1={i*58} x2={720} y2={i*58} stroke="rgba(255,255,255,.025)" strokeWidth={1}/>)}
+        <g stroke="rgba(21,101,192,.2)" strokeWidth={2} fill="none">
+          <path d="M80,210 Q200,190 360,205 Q490,218 640,205"/>
+          <path d="M360,15 Q352,115 360,205 Q368,285 360,395"/>
+          <path d="M80,210 Q115,295 175,345 Q240,385 330,395"/>
+          <path d="M640,205 Q600,285 545,335 Q488,375 415,395"/>
+          <path d="M175,75 Q255,130 325,150 Q400,168 465,158 Q535,148 590,115"/>
+        </g>
+        <g stroke="rgba(21,101,192,.07)" strokeWidth={1} fill="none">
+          <path d="M200,15 Q218,105 235,205 Q252,305 245,395"/>
+          <path d="M50,125 Q200,145 360,135 Q505,125 665,145"/>
+          <path d="M460,15 Q452,105 460,205 Q468,305 475,395"/>
+          <path d="M145,305 Q275,282 360,292 Q445,302 565,280"/>
+        </g>
+        <path d="M50,165 Q180,158 285,168 Q362,178 445,162 Q525,148 675,158" stroke="rgba(33,150,243,.28)" strokeWidth={5} fill="none" strokeLinecap="round"/>
+        <text x={318} y={152} fill="rgba(33,150,243,.3)" fontSize={8} letterSpacing={2} fontFamily="DM Sans,sans-serif">GODAVARI</text>
+        {hotspots.map(h=>{
+          const x=toX(h.lng), y=toY(h.lat);
+          const r=10+(h.violations/maxV)*28;
+          const cfg=RISK[h.risk];
+          const isActive=selected?.id===h.id;
+          const dimmed=riskFilter!=="all" && h.risk!==riskFilter;
+          return (
+            <g key={h.id} onClick={()=>onSelect(h)} style={{cursor:"pointer"}} opacity={dimmed?0.12:1}>
+              {!dimmed && (h.risk==="critical"||h.risk==="high") && (
+                <circle cx={x} cy={y} r={r} fill="none" stroke={cfg.color} strokeWidth={1.5} opacity={0.3}>
+                  <animate attributeName="r" values={`${r};${r+16};${r}`} dur="2.4s" repeatCount="indefinite"/>
+                  <animate attributeName="opacity" values="0.35;0;0.35" dur="2.4s" repeatCount="indefinite"/>
+                </circle>
+              )}
+              <circle cx={x} cy={y} r={isActive?r+5:r} fill={cfg.light} stroke={cfg.color} strokeWidth={isActive?2.5:1.5}/>
+              <circle cx={x} cy={y} r={isActive?5:3.5} fill={cfg.color}/>
+              <text x={x} y={y-r-5} textAnchor="middle" fill={cfg.color} fontSize={10} fontFamily="Bebas Neue,cursive" letterSpacing={1}>{h.violations}</text>
+              <text x={x} y={y+r+13} textAnchor="middle" fill={isActive?"rgba(255,255,255,.85)":"rgba(255,255,255,.42)"} fontSize={isActive?8.5:7.5} fontFamily="DM Sans,sans-serif">
+                {h.name.length>17?h.name.slice(0,16)+"…":h.name}
+              </text>
+            </g>
+          );
+        })}
       </svg>
-
-      <div style={{position:"absolute",top:10,right:10,zIndex:10,background:"rgba(10,22,40,0.92)",border:"1px solid rgba(255,255,255,.1)",padding:"10px 14px",pointerEvents:"none"}}>
-        <div style={{fontSize:".56rem",fontWeight:700,letterSpacing:2,textTransform:"uppercase",color:"rgba(255,255,255,.3)",marginBottom:8}}>Risk Level</div>
-        {Object.entries(RISK).map(([k,v])=>(
-          <div key={k} style={{display:"flex",alignItems:"center",gap:7,marginBottom:5}}>
-            <div style={{width:9,height:9,borderRadius:"50%",background:v.color,boxShadow:`0 0 6px ${v.color}88`}}/>
-            <span style={{fontSize:".62rem",color:"rgba(255,255,255,.55)",textTransform:"capitalize"}}>{v.label}</span>
-          </div>
-        ))}
-        <div style={{borderTop:"1px solid rgba(255,255,255,.08)",marginTop:8,paddingTop:8,fontSize:".56rem",color:"rgba(255,255,255,.25)"}}>Bubble = violation count</div>
-      </div>
-      <div style={{position:"absolute",top:10,left:12,zIndex:10,pointerEvents:"none"}}>
-        <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:".95rem",letterSpacing:3,color:"rgba(255,255,255,.1)"}}>NASHIK ZONE</div>
-        <div style={{fontSize:".55rem",color:"rgba(255,255,255,.15)",letterSpacing:1.5}}>19.97°N · 73.78°E</div>
-      </div>
-
-      {hotspots.map(h=>{
-        const scale = h.violations / safeMaxV;
-        const clampedScale = Math.max(0, Math.min(scale, 1));
-        const r = 10 + clampedScale * 28;
-        const cfg=RISK[h.risk];
-        const isActive=selected?.id===h.id;
-        const dimmed=riskFilter!=="all" && h.risk!==riskFilter;
-        const pos = project(h.lat, h.lng);
-        return (
-          <div
-            key={h.id}
-            style={{
-              position: "absolute",
-              ...pos,
-              transform: "translate(-50%, -50%)",
-              width: 100,
-              height: 100,
-              zIndex: isActive ? 8 : 4,
-              pointerEvents: dimmed ? "none" : "auto",
-              cursor: dimmed ? "default" : "pointer",
-              opacity: dimmed ? 0.2 : 1
-            }}
-            onClick={()=>!dimmed && onSelect(h)}
-          >
-            <svg width={100} height={100} style={{overflow:"visible"}}>
-              <g transform={`translate(50, 50)`}>
-                {!dimmed && (h.risk==="critical"||h.risk==="high") && (
-                  <circle cx={0} cy={0} r={r} fill="none" stroke={cfg.color} strokeWidth={1.5} opacity={0.3}>
-                    <animate attributeName="r" values={`${r};${r+16};${r}`} dur="2.4s" repeatCount="indefinite"/>
-                    <animate attributeName="opacity" values="0.35;0;0.35" dur="2.4s" repeatCount="indefinite"/>
-                  </circle>
-                )}
-                <circle cx={0} cy={0} r={isActive?r+5:r} fill={cfg.light} stroke={cfg.color} strokeWidth={isActive?2.5:1.5}/>
-                <circle cx={0} cy={0} r={isActive?5:3.5} fill={cfg.color}/>
-                <text x={0} y={-r-5} textAnchor="middle" fill={cfg.color} fontSize={10} fontFamily="Bebas Neue,cursive" letterSpacing={1}>{h.violations}</text>
-                <text x={0} y={r+13} textAnchor="middle" fill={isActive?"rgba(255,255,255,.85)":"rgba(255,255,255,.42)"} fontSize={isActive?8.5:7.5} fontFamily="DM Sans,sans-serif">
-                  {h.name.length>17?h.name.slice(0,16)+"…":h.name}
-                </text>
-              </g>
-            </svg>
-          </div>
-        );
-      })}
     </div>
   );
+}
+
+function NashikMap(props) {
+  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+  if (apiKey) return <GoogleHotspotMap {...props} apiKey={apiKey} />;
+  return <SvgNashikMap {...props} />;
 }
 
 function HeatmapGrid() {
