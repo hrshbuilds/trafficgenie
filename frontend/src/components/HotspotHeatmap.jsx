@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { GoogleMap, useJsApiLoader, OverlayView } from '@react-google-maps/api';
 
 const FONT_URL = "https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,400&family=DM+Sans:wght@300;400;500;600&family=Bebas+Neue&display=swap";
 
@@ -52,33 +51,31 @@ function hmColor(v) {
   return `rgba(21,101,192,${Math.max(0.05,r*0.35).toFixed(2)})`;
 }
 
-const mapContainerStyle = { width: '100%', height: '460px' };
-const center = { lat: 19.9975, lng: 73.7898 };
-
-const mapOptions = {
-  disableDefaultUI: true,
-  zoomControl: true,
-  styles: [
-    { elementType: "geometry", stylers: [{ color: "#0a1628" }] },
-    { elementType: "labels.text.stroke", stylers: [{ color: "#0a1628" }] },
-    { elementType: "labels.text.fill", stylers: [{ color: "#8a9eb3" }] },
-    { featureType: "water", elementType: "geometry", stylers: [{ color: "#0f1e35" }] },
-    { featureType: "road", elementType: "geometry", stylers: [{ color: "#15243b" }] },
-    { featureType: "road", elementType: "geometry.stroke", stylers: [{ color: "#212a37" }] },
-    { featureType: "poi", stylers: [{ visibility: "off" }] },
-    { featureType: "transit", stylers: [{ visibility: "off" }] }
-  ]
-};
-
 function NashikMap({ hotspots, selected, onSelect, riskFilter }) {
-  const { isLoaded } = useJsApiLoader({
-    id: 'google-map-script',
-    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || ''
+  const latSpan = LAT_MAX - LAT_MIN;
+  const lngSpan = LNG_MAX - LNG_MIN;
+  const project = (lat, lng) => ({
+    top: `${((LAT_MAX - lat) / latSpan) * 100}%`,
+    left: `${((lng - LNG_MIN) / lngSpan) * 100}%`,
   });
-
   const maxV = Math.max(...hotspots.map(h=>h.violations));
+  const safeMaxV = Number.isFinite(maxV) && maxV > 0 ? maxV : 1;
+
   return (
-    <div style={{background:"#0a1628",position:"relative"}}>
+    <div style={{background:"#0a1628",position:"relative",height:460,overflow:"hidden"}}>
+      <div style={{position:"absolute",inset:0,background:"radial-gradient(circle at 22% 18%, rgba(46,125,250,0.24), transparent 42%), radial-gradient(circle at 81% 72%, rgba(94, 58, 238, 0.16), transparent 46%), linear-gradient(180deg, #0a1628 0%, #0f1e35 100%)"}} />
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{position:"absolute",inset:0,opacity:0.38}}>
+        {[12, 24, 35, 49, 63, 78, 90].map((x) => (
+          <line key={`v-${x}`} x1={x} y1="0" x2={x} y2="100" stroke="rgba(143,174,198,0.18)" strokeWidth="0.2" />
+        ))}
+        {[9, 18, 28, 40, 52, 67, 81, 92].map((y) => (
+          <line key={`h-${y}`} x1="0" y1={y} x2="100" y2={y} stroke="rgba(143,174,198,0.14)" strokeWidth="0.2" />
+        ))}
+        <polyline points="5,72 13,68 22,63 30,58 40,56 48,52 60,50 72,46 84,42 95,40" fill="none" stroke="rgba(23,94,181,0.35)" strokeWidth="1.6" />
+        <polyline points="10,25 17,31 27,35 34,43 43,49 55,58 66,63 77,70 90,74" fill="none" stroke="rgba(23,94,181,0.32)" strokeWidth="1.2" />
+        <polyline points="12,87 22,79 31,74 39,66 51,60 63,56 76,50 89,45" fill="none" stroke="rgba(21,101,192,0.44)" strokeWidth="0.8" />
+      </svg>
+
       <div style={{position:"absolute",top:10,right:10,zIndex:10,background:"rgba(10,22,40,0.92)",border:"1px solid rgba(255,255,255,.1)",padding:"10px 14px",pointerEvents:"none"}}>
         <div style={{fontSize:".56rem",fontWeight:700,letterSpacing:2,textTransform:"uppercase",color:"rgba(255,255,255,.3)",marginBottom:8}}>Risk Level</div>
         {Object.entries(RISK).map(([k,v])=>(
@@ -93,51 +90,50 @@ function NashikMap({ hotspots, selected, onSelect, riskFilter }) {
         <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:".95rem",letterSpacing:3,color:"rgba(255,255,255,.1)"}}>NASHIK ZONE</div>
         <div style={{fontSize:".55rem",color:"rgba(255,255,255,.15)",letterSpacing:1.5}}>19.97°N · 73.78°E</div>
       </div>
-      
-      {!isLoaded ? (
-        <div style={{width:"100%",height:460,display:"flex",alignItems:"center",justifyContent:"center",color:"#546E7A",fontSize:".8rem",letterSpacing:2}}>LOADING MAP...</div>
-      ) : (
-        <GoogleMap
-          mapContainerStyle={mapContainerStyle}
-          center={center}
-          zoom={13}
-          options={mapOptions}
-        >
-          {hotspots.map(h=>{
-            const r=10+(h.violations/maxV)*28;
-            const cfg=RISK[h.risk];
-            const isActive=selected?.id===h.id;
-            const dimmed=riskFilter!=="all" && h.risk!==riskFilter;
-            return (
-              <OverlayView
-                key={h.id}
-                position={{lat: h.lat, lng: h.lng}}
-                mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
-                getPixelPositionOffset={(x,y)=>({x: -50, y: -50})}
-              >
-                <div style={{width:100,height:100,pointerEvents: dimmed ? "none" : "auto", cursor: dimmed ? "default" : "pointer", opacity: dimmed ? 0.2 : 1}} onClick={()=>!dimmed && onSelect(h)}>
-                  <svg width={100} height={100} style={{overflow:"visible"}}>
-                    <g transform={`translate(50, 50)`}>
-                      {!dimmed && (h.risk==="critical"||h.risk==="high") && (
-                        <circle cx={0} cy={0} r={r} fill="none" stroke={cfg.color} strokeWidth={1.5} opacity={0.3}>
-                          <animate attributeName="r" values={`${r};${r+16};${r}`} dur="2.4s" repeatCount="indefinite"/>
-                          <animate attributeName="opacity" values="0.35;0;0.35" dur="2.4s" repeatCount="indefinite"/>
-                        </circle>
-                      )}
-                      <circle cx={0} cy={0} r={isActive?r+5:r} fill={cfg.light} stroke={cfg.color} strokeWidth={isActive?2.5:1.5}/>
-                      <circle cx={0} cy={0} r={isActive?5:3.5} fill={cfg.color}/>
-                      <text x={0} y={-r-5} textAnchor="middle" fill={cfg.color} fontSize={10} fontFamily="Bebas Neue,cursive" letterSpacing={1}>{h.violations}</text>
-                      <text x={0} y={r+13} textAnchor="middle" fill={isActive?"rgba(255,255,255,.85)":"rgba(255,255,255,.42)"} fontSize={isActive?8.5:7.5} fontFamily="DM Sans,sans-serif">
-                        {h.name.length>17?h.name.slice(0,16)+"…":h.name}
-                      </text>
-                    </g>
-                  </svg>
-                </div>
-              </OverlayView>
-            );
-          })}
-        </GoogleMap>
-      )}
+
+      {hotspots.map(h=>{
+        const scale = h.violations / safeMaxV;
+        const clampedScale = Math.max(0, Math.min(scale, 1));
+        const r = 10 + clampedScale * 28;
+        const cfg=RISK[h.risk];
+        const isActive=selected?.id===h.id;
+        const dimmed=riskFilter!=="all" && h.risk!==riskFilter;
+        const pos = project(h.lat, h.lng);
+        return (
+          <div
+            key={h.id}
+            style={{
+              position: "absolute",
+              ...pos,
+              transform: "translate(-50%, -50%)",
+              width: 100,
+              height: 100,
+              zIndex: isActive ? 8 : 4,
+              pointerEvents: dimmed ? "none" : "auto",
+              cursor: dimmed ? "default" : "pointer",
+              opacity: dimmed ? 0.2 : 1
+            }}
+            onClick={()=>!dimmed && onSelect(h)}
+          >
+            <svg width={100} height={100} style={{overflow:"visible"}}>
+              <g transform={`translate(50, 50)`}>
+                {!dimmed && (h.risk==="critical"||h.risk==="high") && (
+                  <circle cx={0} cy={0} r={r} fill="none" stroke={cfg.color} strokeWidth={1.5} opacity={0.3}>
+                    <animate attributeName="r" values={`${r};${r+16};${r}`} dur="2.4s" repeatCount="indefinite"/>
+                    <animate attributeName="opacity" values="0.35;0;0.35" dur="2.4s" repeatCount="indefinite"/>
+                  </circle>
+                )}
+                <circle cx={0} cy={0} r={isActive?r+5:r} fill={cfg.light} stroke={cfg.color} strokeWidth={isActive?2.5:1.5}/>
+                <circle cx={0} cy={0} r={isActive?5:3.5} fill={cfg.color}/>
+                <text x={0} y={-r-5} textAnchor="middle" fill={cfg.color} fontSize={10} fontFamily="Bebas Neue,cursive" letterSpacing={1}>{h.violations}</text>
+                <text x={0} y={r+13} textAnchor="middle" fill={isActive?"rgba(255,255,255,.85)":"rgba(255,255,255,.42)"} fontSize={isActive?8.5:7.5} fontFamily="DM Sans,sans-serif">
+                  {h.name.length>17?h.name.slice(0,16)+"…":h.name}
+                </text>
+              </g>
+            </svg>
+          </div>
+        );
+      })}
     </div>
   );
 }
