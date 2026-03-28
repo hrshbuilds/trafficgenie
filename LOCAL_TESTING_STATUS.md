@@ -1,8 +1,8 @@
-# 🎯 TrafficVision Frontend - Ready for Local Testing
+# 🎏 TrafficGenie Frontend - Ready for Local Testing
 
 ## ✅ Status: All Systems Go!
 
-The TrafficVision frontend is **fully configured and running** for local testing.
+The TrafficGenie frontend is **fully configured and running** for local testing.
 
 ### 🚀 Current State
 
@@ -11,7 +11,7 @@ The TrafficVision frontend is **fully configured and running** for local testing
 | **Dev Server** | ✅ Running | http://localhost:5174 (port auto-switched) |
 | **Frontend Build** | ✅ Success | 814KB JS (248KB gzipped), 51KB CSS (11KB gzipped) |
 | **Dependencies** | ✅ Installed | React 19, Firebase 12, Vite 8 |
-| **Firebase Config** | ✅ Loaded | Project: `trafficvision-9eb7f` |
+| **Firebase Config** | ✅ Loaded | Project: `trafficgenie-a48a8` |
 | **Backend API** | ✅ Running | http://localhost:8000 |
 | **Code Quality** | ✅ Good | 9 non-critical ESLint warnings |
 
@@ -159,7 +159,7 @@ cat /tmp/dev-server.log
 ### Environment Variables Verified ✅
 ```bash
 ✓ VITE_FIREBASE_API_KEY - Set
-✓ VITE_FIREBASE_PROJECT_ID - trafficvision-9eb7f
+✓ VITE_FIREBASE_PROJECT_ID - trafficgenie-a48a8
 ✓ VITE_API_BASE_URL - http://localhost:8000
 ✓ All Firebase credentials - Loaded
 ```

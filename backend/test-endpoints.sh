@@ -1,5 +1,5 @@
 #!/bin/bash
-# TrafficVision Backend Testing Guide
+# TrafficGenie Backend Testing Guide
 # Tests all new endpoints for seeding, live feed, and Traffic Genie
 
 set -e
@@ -8,7 +8,7 @@ API_BASE="http://localhost:8000"
 API_PATH="/api"
 
 echo "═══════════════════════════════════════════════════════════════════"
-echo "TrafficVision Backend - Integration Testing"
+echo "TrafficGenie Backend - Integration Testing"
 echo "═══════════════════════════════════════════════════════════════════"
 
 # Check if server is running

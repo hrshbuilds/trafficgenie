@@ -1,4 +1,4 @@
-# TrafficVision Full-Functionality & Deployment Plan (FastAPI Track)
+# TrafficGenie Full-Functionality & Deployment Plan (FastAPI Track)
 
 ## 1) Current-State Findings (Repository Audit)
 
@@ -260,7 +260,7 @@
 
 ## 10) Definition of “Full Functional & Deployable”
 
-TrafficVision is considered full functional and deployable when:
+TrafficGenie is considered full functional and deployable when:
 - Users authenticate via Firebase and role enforcement is active in FastAPI.
 - Uploaded videos produce persisted violations and challans with evidence links.
 - Frontend dashboards are powered by live FastAPI data (not static arrays).

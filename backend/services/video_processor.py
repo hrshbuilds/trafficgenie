@@ -1,5 +1,5 @@
 """
-Video Processing Service for TrafficVision.
+Video Processing Service for TrafficGenie.
 Processes video files to detect violations and store them in database.
 """
 import logging

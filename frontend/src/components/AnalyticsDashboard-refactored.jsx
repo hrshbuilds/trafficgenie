@@ -38,15 +38,14 @@ const FALLBACK_DATA = {
 };
 
 const AnalyticsDashboard = () => {
-  const [filter, setFilter] = useState({ period: 'This Week', section: 'All Sections' });
   const [counts, setCounts] = useState({ vToday: 0, activeCam: 0, accuracy: 0, challans: 0 });
   const [kpiCounts, setKpiCounts] = useState({ helmet: 0, signal: 0, triple: 0, lane: 0 });
 
   // Fetch data from hooks
   const { analytics, loading: analyticsLoading, error: analyticsError, refetch: refetchAnalytics } = useAnalytics();
-  const { stats, loading: statsLoading } = useTopStats();
-  const { wards, loading: wardsLoading } = useWardStats();
-  const { cameras, loading: camerasLoading } = useCameraStatus();
+  const { stats } = useTopStats();
+  const { wards } = useWardStats();
+  const { cameras } = useCameraStatus();
 
   const sparklineRefs = useRef([]);
 
@@ -89,8 +88,8 @@ const AnalyticsDashboard = () => {
       };
 
       // Use real stats from API or fallback values
-      const vTodayVal = stats?.violationsToday || 1191;
-      const activeCamVal = stats?.activeCameras || 12;
+      const vTodayVal = stats?.violations || 1191;
+      const activeCamVal = violationData.cameras.filter((camera) => camera.status === 'online').length || 12;
       const accuracyVal = stats?.accuracy || 96;
       const challansVal = stats?.challans || 847;
 
@@ -128,7 +127,7 @@ const AnalyticsDashboard = () => {
     });
 
     return () => ctx.revert();
-  }, [stats]);
+  }, [stats, violationData.cameras]);
 
   const buildLineChart = () => {
     const data = violationData.dailyTrend;
@@ -249,15 +248,6 @@ const AnalyticsDashboard = () => {
       ))}
     </div>
   );
-
-  const doExport = () => {
-    const headers = ['Case ID', 'Vehicle Number', 'Offence Type', 'Section', 'Date', 'Time', 'Confidence (%)', 'Fine (INR)'];
-    const rows = violationData.recent.map(v => [v.id, 'MH-15-XX-0000', v.type, v.section, '2026-03-27', v.time, v.conf, 500]);
-    let csv = headers.join(',') + '\n' + rows.map(r => r.join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = `TrafficWatch_Analytics_${new Date().toISOString().slice(0, 10)}.csv`; a.click();
-  };
 
   // Show loading skeleton for initial load
   if (analyticsLoading && !violationData.dailyTrend) {

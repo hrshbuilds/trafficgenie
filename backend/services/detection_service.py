@@ -99,8 +99,6 @@ class DetectionService:
                 )
                 violations.extend(frame_violations)
 
-            cap.release()
-
             # Deduplicate violations
             violations = self._deduplicate_violations(violations)
 
@@ -120,6 +118,9 @@ class DetectionService:
         except Exception as e:
             logger.error(f"Video processing failed: {e}")
             raise DetectionError(str(e))
+        finally:
+            if "cap" in locals() and cap is not None:
+                cap.release()
 
     def _detect_violations_in_frame(
         self,
@@ -160,7 +161,7 @@ class DetectionService:
                 conf = float(box.conf[0])
                 x1, y1, x2, y2 = map(int, box.xyxy[0])
 
-                label = self.model.names.get(cls, "unknown")
+                label = self._resolve_label(self.model.names, cls)
 
                 if label == "person":
                     persons.append((x1, y1, x2, y2, conf))
@@ -203,6 +204,19 @@ class DetectionService:
             logger.warning(f"Error processing frame {frame_number}: {e}")
 
         return violations
+
+    @staticmethod
+    def _resolve_label(names, class_id: int) -> str:
+        """Resolve class label from YOLO `names` payload.
+
+        YOLO can return `names` as a dict, list, or tuple depending on model/runtime.
+        This helper keeps label resolution backward-compatible across versions.
+        """
+        if isinstance(names, dict):
+            return names.get(class_id, "unknown")
+        if isinstance(names, (list, tuple)) and 0 <= class_id < len(names):
+            return str(names[class_id])
+        return "unknown"
 
     @staticmethod
     def _detect_triple_riding(
@@ -292,7 +306,7 @@ class DetectionService:
                 helmet_detected = False
                 for box in result.boxes:
                     cls = int(box.cls[0])
-                    label = self.helmet_model.names.get(cls, "unknown")
+                    label = self._resolve_label(self.helmet_model.names, cls)
                     if label.lower() in ("helmet", "with_helmet"):
                         helmet_detected = True
                         break
@@ -335,14 +349,24 @@ class DetectionService:
                 groups[key] = []
             groups[key].append(v)
 
-        # Keep first violation from each group within time window
+        # Keep earliest event, then keep another only if far enough in time.
+        # This avoids dropping distinct events while still reducing duplicate bursts.
         deduplicated = []
         for group in groups.values():
             if group:
-                # Sort by frame number
                 group.sort(key=lambda x: x.get("frame", 0))
-                # Keep only first one
-                deduplicated.append(group[0])
+                kept_frames = []
+
+                for violation in group:
+                    frame = int(violation.get("frame", 0))
+                    if not kept_frames:
+                        deduplicated.append(violation)
+                        kept_frames.append(frame)
+                        continue
+
+                    if frame - kept_frames[-1] >= time_window_frames:
+                        deduplicated.append(violation)
+                        kept_frames.append(frame)
 
         return deduplicated
 
