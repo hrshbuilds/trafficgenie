@@ -1,115 +1,148 @@
 # TrafficGenie
 
-> **Fork of [hrshbuilds/TrafficVision](https://github.com/hrshbuilds/TrafficVision)**
-> — a full-stack upgrade that transforms the original detection script into a
-> production-ready traffic violation management system.
+TrafficGenie is a full-stack traffic violation management platform that combines computer vision (YOLOv8), a FastAPI backend, and a React dashboard to help teams detect violations, generate challans, and monitor trends.
 
----
+> Forked and expanded from [hrshbuilds/TrafficVision](https://github.com/hrshbuilds/TrafficVision).
 
-## Brief Review
+## Why TrafficGenie
 
-**TrafficGenie** is a full-stack traffic-violation management system built on top
-of the YOLOv8 computer-vision model.  It automates the detection of road
-violations (currently triple-riding on motorcycles), generates digital challans
-(tickets), and gives traffic officers an AI-assisted dashboard to review and
-manage those challans.
+- Detects violations from uploaded traffic videos.
+- Stores and serves violation/challan data via REST APIs.
+- Adds AI-generated summaries and insights (Gemini integration).
+- Supports Firebase-backed authentication and data workflows.
+- Includes frontend dashboard for operations and monitoring.
 
-### How it works
+## Core Features
 
-1. **Video ingestion** – Officers or cameras upload MP4/AVI/MOV footage via a
-   REST endpoint.
-2. **YOLO detection** – A YOLOv8 model analyses each frame and flags frames
-   where three or more people are detected on a single motorcycle.
-3. **Violation & challan pipeline** – Detected frames are stored as evidence
-   and a challan record is automatically created in the database.
-4. **Gemini AI insights** – Google Gemini is called to generate a short natural-
-   language summary and risk-level assessment for each violation.
-5. **Officer dashboard** – A React/Vite single-page app lets officers search,
-   filter, and review challans; Firebase Auth controls access by role.
+- **Video ingestion + processing** (`/api/videos/upload`, `/api/videos/process`)
+- **Violation management APIs** (`/api/violations`, `/api/recent-violations`)
+- **Challan lifecycle APIs** (`/api/challans`, review actions)
+- **Analytics summary endpoint** (`/api/analytics/summary`)
+- **AI assistant endpoints** (`/api/analyze`, `/api/ask`, `/api/context/summary`)
+- **Health + metadata endpoints** (`/health`, `/api/health`, `/api/version`)
 
-### Tech stack at a glance
+## Tech Stack
 
 | Layer | Technology |
-|-------|-----------|
-| Detection | YOLOv8 (Ultralytics) |
-| Backend API | FastAPI + SQLAlchemy (SQLite → Firestore path) |
-| AI insights | Google Gemini |
-| Auth & storage | Firebase Admin SDK |
-| Frontend | React 18 + Vite |
-| Real-time | Firebase Firestore listeners + WebSocket (in progress) |
+|---|---|
+| Detection | YOLOv8 (Ultralytics), OpenCV |
+| Backend | FastAPI, SQLAlchemy, Pydantic |
+| Data | SQLite (dev), PostgreSQL-ready config |
+| Auth/Cloud | Firebase Admin, Firestore, Cloud Storage |
+| AI | Google Gemini |
+| Frontend | React + Vite |
+| Testing | pytest, httpx |
 
-### Strengths
+## Repository Structure
 
-* Clean separation between detection, API, and frontend concerns.
-* Pydantic schemas on every endpoint give strong input validation out of the box.
-* Firebase Auth integration means role-based access control is solved at the
-  identity layer.
-* Gemini AI adds a genuinely useful layer of insight rather than just raw
-  bounding-box data.
-* Well-documented — multiple guides cover local setup, API testing, and
-  production deployment.
+```text
+trafficgenie/
+├── backend/                 # FastAPI app, services, models, tests
+│   ├── main.py              # Primary backend entrypoint
+│   ├── requirements.txt
+│   └── .env.example
+├── frontend/                # React + Vite dashboard
+│   └── package.json
+├── QUICK_START_LOCAL.md
+├── API_TESTING_GUIDE.md
+├── PRODUCTION_DEPLOYMENT_GUIDE.md
+└── README.md
+```
 
-### Current limitations
+## Quick Start
 
-* Detection pipeline is not yet wired into the async job queue, so long videos
-  will block the API server.
-* Firebase Storage integration is partially implemented; evidence images still
-  use local disk paths in development.
-* Alembic database migrations are not yet configured, making schema changes
-  manual.
-* CORS is open to `"*"` and should be locked down before production deployment.
+### 1) Prerequisites
 
-### Overall verdict
+- Python 3.10+
+- Node.js 18+
+- npm 9+
 
-TrafficGenie is a well-conceived project that successfully demonstrates how
-computer vision, a modern REST API, and a reactive frontend can be combined into
-a practical law-enforcement tool.  The foundation is solid; the main work
-remaining is wiring the async job queue, completing the Firebase Storage/Firestore
-migration, and adding comprehensive tests before the system is production-ready.
+### 2) Backend Setup
 
----
+```bash
+cd backend
+python -m venv .venv
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+cp .env.example .env
+python main.py
+```
 
-## What's new vs TrafficVision
+Backend runs at `http://localhost:8000`.
 
-| Feature | TrafficVision | TrafficGenie |
-|---------|:-------------:|:------------:|
-| Triple-riding detection (YOLO) | ✅ | ✅ |
-| FastAPI REST API | ❌ | ✅ |
-| React / Vite frontend dashboard | ❌ | ✅ |
-| Firebase Firestore + Storage | ❌ | ✅ |
-| Google Gemini AI insights | ❌ | ✅ |
-| SQLAlchemy database + migrations | ❌ | ✅ |
-| Video upload & processing pipeline | ❌ | ✅ |
-| pytest test suite | ❌ | ✅ |
-| Deployment guides | ❌ | ✅ |
+Useful endpoints:
+- Health: `http://localhost:8000/api/health`
+- Docs (debug): `http://localhost:8000/api/docs`
 
----
+### 3) Frontend Setup
 
-## Quick start (local)
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
-See **[QUICK_START_LOCAL.md](./QUICK_START_LOCAL.md)** for a step-by-step local
-setup guide.
+Frontend runs at `http://localhost:5173`.
 
----
+## Configuration
 
-## Contributing changes back to TrafficVision
+Copy `backend/.env.example` to `backend/.env` and update values for your environment.
 
-Want to propose these changes upstream? See
-**[UPSTREAM_CONTRIBUTION_GUIDE.md](./UPSTREAM_CONTRIBUTION_GUIDE.md)** — or
-run the helper script:
+Important variables:
+- `DATABASE_URL`
+- `ALLOWED_ORIGINS`
+- `FIREBASE_*`
+- `GEMINI_API_KEY`
+- `DEMO_MODE`
+- `YOLO_MODEL_PATH`
+
+## Development Workflows
+
+### Run backend tests
+
+```bash
+cd backend
+pytest
+```
+
+### Frontend checks
+
+```bash
+cd frontend
+npm run lint
+npm run build
+```
+
+### API smoke test script
+
+```bash
+cd backend
+bash test-endpoints.sh
+```
+
+## Documentation
+
+- [QUICK_START_LOCAL.md](./QUICK_START_LOCAL.md) — local setup and smoke testing
+- [API_TESTING_GUIDE.md](./API_TESTING_GUIDE.md) — endpoint-level testing examples
+- [PRODUCTION_DEPLOYMENT_GUIDE.md](./PRODUCTION_DEPLOYMENT_GUIDE.md) — deployment guidance
+- [BACKEND_AUDIT_REPORT.md](./BACKEND_AUDIT_REPORT.md) — backend architecture/audit notes
+- [UPSTREAM_CONTRIBUTION_GUIDE.md](./UPSTREAM_CONTRIBUTION_GUIDE.md) — contribute improvements upstream
+
+## Current Status / Notes
+
+- Demo mode auth bypass is available for development (`DEMO_MODE=True`).
+- Firebase and Gemini integrations degrade gracefully when not configured.
+- Async queue hooks are present but may require additional production setup (Redis/Celery).
+
+## Contributing
+
+1. Create a feature branch.
+2. Make focused changes with tests.
+3. Run lint/tests before opening a PR.
+4. Update docs when APIs or workflows change.
+
+If you want to contribute these improvements upstream, use:
 
 ```bash
 ./scripts/prepare-upstream-pr.sh
 ```
-
----
-
-## Documentation index
-
-| Document | Description |
-|----------|-------------|
-| [QUICK_START_LOCAL.md](./QUICK_START_LOCAL.md) | Local development setup |
-| [API_TESTING_GUIDE.md](./API_TESTING_GUIDE.md) | REST API reference + curl examples |
-| [PRODUCTION_DEPLOYMENT_GUIDE.md](./PRODUCTION_DEPLOYMENT_GUIDE.md) | Cloud deployment |
-| [BACKEND_AUDIT_REPORT.md](./BACKEND_AUDIT_REPORT.md) | Architecture overview |
-| [UPSTREAM_CONTRIBUTION_GUIDE.md](./UPSTREAM_CONTRIBUTION_GUIDE.md) | How to contribute back to TrafficVision |
