@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import * as analyticsApi from '../services/api/analyticsApi';
 
 /**
@@ -9,29 +9,42 @@ export function useAnalytics(timeframe = 'week') {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    let isMounted = true;
+  const fetchData = useCallback(async (isMountedRef = { current: true }) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const analytics = await analyticsApi.fetchAnalytics(timeframe);
+      if (isMountedRef.current) setData(analytics);
+    } catch (err) {
+      if (isMountedRef.current) setError(err.message);
+    } finally {
+      if (isMountedRef.current) setLoading(false);
+    }
+  }, [timeframe]);
 
-    async function fetchData() {
+  const refetch = useCallback(async () => {
+    await fetchData({ current: true });
+  }, [fetchData]);
+
+  useEffect(() => {
+    const isMountedRef = { current: true };
+
+    async function fetchInitialData() {
       try {
-        setLoading(true);
-        const analytics = await analyticsApi.fetchAnalytics(timeframe);
-        if (isMounted) setData(analytics);
-      } catch (err) {
-        if (isMounted) setError(err.message);
-      } finally {
-        if (isMounted) setLoading(false);
+        await fetchData(isMountedRef);
+      } catch {
+        // handled inside fetchData
       }
     }
 
-    fetchData();
+    fetchInitialData();
 
     return () => {
-      isMounted = false;
+      isMountedRef.current = false;
     };
-  }, [timeframe]);
+  }, [fetchData]);
 
-  return { data, loading, error };
+  return { data, analytics: data, loading, error, refetch };
 }
 
 /**

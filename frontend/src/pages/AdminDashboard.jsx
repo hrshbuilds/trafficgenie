@@ -9,7 +9,6 @@ import AnalyticsDashboard from '../components/AnalyticsDashboard';
 import ViolationLog from '../components/ViolationLog';
 import ChallanSection from '../components/ChallanSection';
 import UserSettings from '../components/UserSettings';
-import { AIInsights } from '../components/analytics/AIInsights';
 import { TrafficGenie } from '../components/TrafficGenie';
 import { LiveIndicator } from '../components/alerts/LiveIndicator';
 import { NewViolationAlert } from '../components/alerts/NewViolationAlert';
@@ -407,7 +406,6 @@ export default function AdminDashboard({ onOpenModal }) {
           ) : activeTab === 'analytics' ? (
             <div className="adm-heatmap-container">
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', height: '100%' }}>
-                <AIInsights violations={filteredViolations} />
                 <AnalyticsDashboard />
               </div>
             </div>

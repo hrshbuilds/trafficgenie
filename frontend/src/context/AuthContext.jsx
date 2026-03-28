@@ -52,8 +52,8 @@ export function AuthProvider({ children }) {
   return (
     <AuthContext.Provider 
       value={{ 
-        currentUser: firebaseAuth.currentUser,
-        loading: firebaseAuth.loading,
+        currentUser: import.meta.env.VITE_MOCK_AUTH === 'true' ? { uid: 'local-dev', email: 'admin@trafficgenie.local', displayName: 'Local Admin' } : firebaseAuth.currentUser,
+        loading: import.meta.env.VITE_MOCK_AUTH === 'true' ? false : firebaseAuth.loading,
         error: firebaseAuth.error,
         signIn,
         signUp,
