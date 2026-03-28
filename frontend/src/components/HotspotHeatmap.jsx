@@ -171,7 +171,7 @@ function SvgNashikMap({ hotspots, selected, onSelect, riskFilter }) {
   return (
     <div style={{background:"#0a1628",position:"relative"}}>
       <MapLegendOverlay googleMode={false} />
-      <svg viewBox="0 0 720 400" style={{width:"100%",height:460,display:"block"}}>
+      <svg viewBox="0 0 720 400" style={{width:"100%",height:MAP_HEIGHT,display:"block"}}>
         {[...Array(12)].map((_,i)=><line key={"gx"+i} x1={i*64} y1={0} x2={i*64} y2={400} stroke="rgba(255,255,255,.025)" strokeWidth={1}/>)}
         {[...Array(7)].map((_,i) =><line key={"gy"+i} x1={0} y1={i*58} x2={720} y2={i*58} stroke="rgba(255,255,255,.025)" strokeWidth={1}/>)}
         <g stroke="rgba(21,101,192,.2)" strokeWidth={2} fill="none">
